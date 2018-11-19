@@ -45,13 +45,12 @@ dependencies {
     compile(ktor("html-builder", ktorVersion))
     compile(ktor("client-core", ktorVersion))
     compile(ktor("client-core-jvm", ktorVersion))
-    compile(ktor("client-apache", ktorVersion))
-    compile(ktor("client-okhttp", ktorVersion))
     compile(ktor("client-json", ktorVersion))
     compile(ktor("client-json-jvm", ktorVersion))
     compile(ktor("client-gson", ktorVersion))
     compile(ktor("server-servlet", ktorVersion))
     compile("io.github.seik.kotlin-telegram-bot:telegram:0.3.5")
+    compile("commons-io:commons-io:2.6")
     compile("com.google.cloud:google-cloud-logging-logback:0.67.0-alpha")
     compile("com.google.http-client:google-http-client:1.23.0")
 
@@ -61,6 +60,7 @@ dependencies {
 appengine {
     ((this as org.gradle.api.plugins.ExtensionAware).extensions.getByName("run") as RunExtension).apply {
         port = 8888
+        jvmFlags = listOf("-Xdebug", "-Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=8889")
     }
     ((this as org.gradle.api.plugins.ExtensionAware).extensions.getByName("deploy") as DeployExtension).apply {
         project = "telegram-currency-bot"
