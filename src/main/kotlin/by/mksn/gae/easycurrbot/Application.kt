@@ -2,6 +2,7 @@ package by.mksn.gae.easycurrbot
 
 import by.mksn.gae.easycurrbot.entity.Update
 import by.mksn.gae.easycurrbot.entity.isUpdateType
+import by.mksn.gae.easycurrbot.network.URLFetch
 import com.google.gson.FieldNamingPolicy
 import io.ktor.application.Application
 import io.ktor.application.call
@@ -18,11 +19,16 @@ import io.ktor.features.ContentNegotiation
 import io.ktor.features.DefaultHeaders
 import io.ktor.gson.gson
 import io.ktor.html.respondHtml
+import io.ktor.http.HttpStatusCode
 import io.ktor.request.receive
+import io.ktor.response.respond
 import io.ktor.routing.get
 import io.ktor.routing.post
 import io.ktor.routing.routing
+import io.ktor.util.date.GMTDate
+import io.ktor.util.date.compareTo
 import kotlinx.html.*
+import me.ivmg.telegram.entities.Message
 import me.ivmg.telegram.entities.User
 import me.ivmg.telegram.network.ApiClient
 import me.ivmg.telegram.network.Response
@@ -40,13 +46,16 @@ fun Application.main() {
         }
     }
 
-    val httpClient = HttpClient() {
-        install(JsonFeature) { serializer = GsonSerializer {
-            setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES)
-        } }
-    }
-    val apiClient = ApiClient(API_TOKEN, API_URL)
+    val serverStartTime = GMTDate()
 
+    val httpClient = HttpClient(URLFetch) {
+        install(JsonFeature) {
+            serializer = GsonSerializer {
+                setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES)
+
+            }
+        }
+    }
     var isWebhookSet = false
 
     routing {
@@ -62,16 +71,15 @@ fun Application.main() {
                 }
             }
         }
-        get("/bot/$API_TOKEN/register") { _ ->
+        get("/bot/$API_TOKEN/register") {
             if (!isWebhookSet) {
                 val updateTypes = call.request.queryParameters.getAll("updates")
                         ?.filter { it.isUpdateType() }
-                        ?.joinToString(prefix = "[", postfix = "]", separator = ",") ?: "[]"
+
                 val (_, success, errCode, errDescription) = httpClient.post<Response<Any>> {
                     url("$API_URL$API_TOKEN/setWebhook")
                     parameter("url", "$SERVER_URL/bot/$API_TOKEN/webhook")
-                    parameter("allowed_updates", updateTypes)
-
+                    parameter("allowed_updates", updateTypes?.joinToString(prefix = "[", postfix = "]", separator = ",") ?: "[]")
                 }
                 if (success) {
                     isWebhookSet = true
@@ -117,7 +125,7 @@ fun Application.main() {
 
 
         }
-        get("/bot/me") { _ ->
+        get("/bot/me") {
             val (user, _, _, _) = httpClient.get<Response<User>>("$API_URL$API_TOKEN/getMe")
             if (user != null) {
                 call.respondHtml {
@@ -134,19 +142,28 @@ fun Application.main() {
                 }
             }
         }
-        post("/bot/$API_TOKEN/webhook") { _ ->
+        post("/bot/$API_TOKEN/webhook") {
             val update = call.receive<Update>()
             update.message?.let {
-                apiClient.sendMessage(
-                        text = it.text ?: "Huh?",
-                        chatId = it.chat.id,
-                        parseMode = null,
-                        disableWebPagePreview = null,
-                        disableNotification = null,
-                        replyToMessageId = it.messageId,
-                        replyMarkup = null
-                )
+                if (GMTDate(it.date.toLong() * 1000) >= serverStartTime) {
+                    httpClient.sendMessage(
+                            text = it.text ?: "Huh?",
+                            chatId = it.chat.id,
+                            replyToMessageId = it.messageId
+                    )
+                }
             }
+            call.respond(HttpStatusCode.OK)
         }
     }
 }
+
+
+private suspend fun HttpClient.sendMessage(text: String, chatId: Long, replyToMessageId: Long) =
+        post<Response<Message>> {
+            url("$API_URL$API_TOKEN/sendMessage")
+            parameter("text", text)
+            parameter("chat_id", chatId.toString())
+            parameter("reply_to_message_id", replyToMessageId.toString())
+        }
+
