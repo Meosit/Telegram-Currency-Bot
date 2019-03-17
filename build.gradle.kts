@@ -6,13 +6,13 @@ import com.google.cloud.tools.gradle.appengine.standard.RunExtension
 group = "by.mksn.gae"
 version = "0.1"
 
-val kotlinVersion = "1.2.70"
-val ktorVersion = "0.9.5"
+val kotlinVersion = "1.3.21"
+val ktorVersion = "1.1.3"
 
 plugins {
     java
     war
-    kotlin("jvm") version "1.2.71"
+    kotlin("jvm") version "1.3.21"
     id("com.google.cloud.tools.appengine") version "1.3.4"
 }
 
@@ -48,8 +48,10 @@ dependencies {
     compile(ktor("client-json", ktorVersion))
     compile(ktor("client-json-jvm", ktorVersion))
     compile(ktor("client-gson", ktorVersion))
+    compile(ktor("client-android", ktorVersion))
     compile(ktor("server-servlet", ktorVersion))
     compile("io.github.seik.kotlin-telegram-bot:telegram:0.3.5")
+    compile("com.google.appengine:appengine-api-1.0-sdk:1.9.71")
     compile("commons-io:commons-io:2.6")
     compile("com.google.cloud:google-cloud-logging-logback:0.67.0-alpha")
     compile("com.google.http-client:google-http-client:1.23.0")

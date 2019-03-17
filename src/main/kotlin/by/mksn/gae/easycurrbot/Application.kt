@@ -2,7 +2,7 @@ package by.mksn.gae.easycurrbot
 
 import by.mksn.gae.easycurrbot.entity.Update
 import by.mksn.gae.easycurrbot.entity.isUpdateType
-import by.mksn.gae.easycurrbot.network.URLFetch
+import by.mksn.gae.easycurrbot.network.UrlFetch
 import com.google.gson.FieldNamingPolicy
 import io.ktor.application.Application
 import io.ktor.application.call
@@ -26,12 +26,9 @@ import io.ktor.routing.get
 import io.ktor.routing.post
 import io.ktor.routing.routing
 import io.ktor.util.date.GMTDate
-import io.ktor.util.date.compareTo
 import kotlinx.html.*
-import me.ivmg.telegram.entities.Message
-import me.ivmg.telegram.entities.User
-import me.ivmg.telegram.network.ApiClient
-import me.ivmg.telegram.network.Response
+import me.ivmg.telegram.entities.*
+import me.ivmg.telegram.network.*
 
 const val API_TOKEN = "<TELEGRAM_API_TOKEN>"
 const val API_URL = "https://api.telegram.org/bot"
@@ -48,11 +45,10 @@ fun Application.main() {
 
     val serverStartTime = GMTDate()
 
-    val httpClient = HttpClient(URLFetch) {
+    val httpClient = HttpClient(UrlFetch) {
         install(JsonFeature) {
             serializer = GsonSerializer {
                 setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES)
-
             }
         }
     }
