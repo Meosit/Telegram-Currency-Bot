@@ -55,6 +55,7 @@ dependencies {
     compile("commons-io:commons-io:2.6")
     compile("com.google.cloud:google-cloud-logging-logback:0.67.0-alpha")
     compile("com.google.http-client:google-http-client:1.23.0")
+    compile("io.github.config4k:config4k:0.4.1")
 
     testCompile("junit", "junit", "4.12")
 }
