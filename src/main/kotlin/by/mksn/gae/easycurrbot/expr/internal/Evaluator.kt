@@ -1,17 +1,18 @@
 package by.mksn.gae.easycurrbot.expr.internal
 
+import by.mksn.gae.easycurrbot.AppConfig
 import by.mksn.gae.easycurrbot.expr.ExpressionException
 import by.mksn.gae.easycurrbot.expr.internal.TokenType.*
 import java.math.BigDecimal
 import java.math.MathContext
 import java.math.RoundingMode
 
-internal class Evaluator(private val mathContext: MathContext) : ExprVisitor<BigDecimal> {
+internal class Evaluator(private val mathContext: MathContext,
+                         private val messages: AppConfig.Messages.Expressions) : ExprVisitor<BigDecimal> {
 
     fun eval(expr: Expr): BigDecimal {
         return expr.accept(this)
     }
-
 
     override fun visitBinaryExpr(expr: BinaryExpr): BigDecimal {
         val left = eval(expr.left)
@@ -22,10 +23,8 @@ internal class Evaluator(private val mathContext: MathContext) : ExprVisitor<Big
             MINUS -> left - right
             STAR -> left * right
             SLASH -> left.divide(right, mathContext)
-            MODULO -> left.remainder(right, mathContext)
             EXPONENT -> left pow right
-            else -> throw ExpressionException(
-                    "Invalid binary operator '${expr.operator.lexeme}'")
+            else -> throw ExpressionException(messages.invalidBinaryOperator, expr.operator.lexeme)
         }
     }
 
@@ -36,7 +35,7 @@ internal class Evaluator(private val mathContext: MathContext) : ExprVisitor<Big
             MINUS -> {
                 right.negate()
             }
-            else -> throw ExpressionException("Invalid unary operator")
+            else -> throw throw ExpressionException(messages.invalidUnaryOperator, expr.operator.lexeme)
         }
     }
 
@@ -46,32 +45,6 @@ internal class Evaluator(private val mathContext: MathContext) : ExprVisitor<Big
 
     override fun visitGroupingExpr(expr: GroupingExpr): BigDecimal {
         return eval(expr.expression)
-    }
-
-    private infix fun Expr.or(right: Expr): BigDecimal {
-        val left = eval(this)
-
-        // short-circuit if left is truthy
-        if (left.isTruthy()) return BigDecimal.ONE
-
-        return eval(right).isTruthy().toBigDecimal()
-    }
-
-    private infix fun Expr.and(right: Expr): BigDecimal {
-        val left = eval(this)
-
-        // short-circuit if left is falsey
-        if (!left.isTruthy()) return BigDecimal.ZERO
-
-        return eval(right).isTruthy().toBigDecimal()
-    }
-
-    private fun BigDecimal.isTruthy(): Boolean {
-        return this != BigDecimal.ZERO
-    }
-
-    private fun Boolean.toBigDecimal(): BigDecimal {
-        return if (this) BigDecimal.ONE else BigDecimal.ZERO
     }
 
     private infix fun BigDecimal.pow(n: BigDecimal): BigDecimal {

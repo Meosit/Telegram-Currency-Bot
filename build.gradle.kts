@@ -48,7 +48,6 @@ dependencies {
     compile(ktor("client-json", ktorVersion))
     compile(ktor("client-json-jvm", ktorVersion))
     compile(ktor("client-gson", ktorVersion))
-    compile(ktor("client-android", ktorVersion))
     compile(ktor("server-servlet", ktorVersion))
     compile("io.github.seik.kotlin-telegram-bot:telegram:0.3.5")
     compile("com.google.appengine:appengine-api-1.0-sdk:1.9.71")

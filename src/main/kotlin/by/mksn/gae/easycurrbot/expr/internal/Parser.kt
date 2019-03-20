@@ -1,10 +1,11 @@
 package by.mksn.gae.easycurrbot.expr.internal
 
+import by.mksn.gae.easycurrbot.AppConfig
 import by.mksn.gae.easycurrbot.expr.ExpressionException
 import by.mksn.gae.easycurrbot.expr.internal.TokenType.*
 import java.math.BigDecimal
 
-internal class Parser(private val tokens: List<Token>) {
+internal class Parser(private val tokens: List<Token>, private val messages: AppConfig.Messages.Expressions) {
 
     private var current = 0
 
@@ -12,7 +13,7 @@ internal class Parser(private val tokens: List<Token>) {
         val expr = expression()
 
         if (!isAtEnd()) {
-            throw ExpressionException("Expected end of expression, found '${peek().lexeme}'")
+            throw ExpressionException(messages.expectedEOF, peek().lexeme)
         }
 
         return expr
@@ -38,7 +39,7 @@ internal class Parser(private val tokens: List<Token>) {
     private fun multiplication(): Expr {
         var left = unary()
 
-        while (match(STAR, SLASH, MODULO)) {
+        while (match(STAR, SLASH)) {
             val operator = previous()
             val right = unary()
 
@@ -80,12 +81,20 @@ internal class Parser(private val tokens: List<Token>) {
         if (match(LEFT_PAREN)) {
             val expr = expression()
 
-            consume(RIGHT_PAREN, "Expected ')' after '${previous().lexeme}'.")
+            if (check(RIGHT_PAREN)) {
+                advance()
+            } else {
+                throw ExpressionException(messages.unclosedParentheses, previous().lexeme)
+            }
 
             return GroupingExpr(expr)
         }
 
-        throw ExpressionException("Expected expression after '${previous().lexeme}'.")
+        if (current == 0) {
+            throw ExpressionException(messages.emptyLeftOperand)
+        }
+
+        throw ExpressionException(messages.invalidRightOperand, previous().lexeme)
     }
 
     private fun match(vararg types: TokenType): Boolean {
@@ -106,12 +115,6 @@ internal class Parser(private val tokens: List<Token>) {
         } else {
             peek().type === tokenType
         }
-    }
-
-    private fun consume(type: TokenType, message: String): Token {
-        if (check(type)) return advance()
-
-        throw ExpressionException(message)
     }
 
     private fun advance(): Token {

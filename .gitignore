@@ -33,4 +33,4 @@ gradle-app.setting
 *.iml
 
 # Credentials file
-telegram.conf
+creds.conf

@@ -7,7 +7,6 @@ internal enum class TokenType {
     MINUS,
     STAR,
     SLASH,
-    MODULO,
     EXPONENT,
 
     // Parentheses

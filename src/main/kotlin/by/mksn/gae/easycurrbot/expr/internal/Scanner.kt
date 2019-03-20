@@ -1,15 +1,13 @@
 package by.mksn.gae.easycurrbot.expr.internal
 
+import by.mksn.gae.easycurrbot.AppConfig
 import java.math.MathContext
 import by.mksn.gae.easycurrbot.expr.ExpressionException
 import by.mksn.gae.easycurrbot.expr.internal.TokenType.*
 
-private fun invalidToken(c: Char) {
-    throw ExpressionException("Invalid token '$c'")
-}
-
 internal class Scanner(private val source: String,
-                       private val mathContext: MathContext) {
+                       private val mathContext: MathContext,
+                       private val messages: AppConfig.Messages.Expressions) {
 
     private val tokens: MutableList<Token> = mutableListOf()
     private var start = 0
@@ -38,14 +36,13 @@ internal class Scanner(private val source: String,
             '-' -> addToken(MINUS)
             '*' -> addToken(STAR)
             '/' -> addToken(SLASH)
-            '%' -> addToken(MODULO)
             '^' -> addToken(EXPONENT)
             '(' -> addToken(LEFT_PAREN)
             ')' -> addToken(RIGHT_PAREN)
             else -> {
                 when {
                     c.isDigit() -> number()
-                    else -> invalidToken(c)
+                    else -> throw ExpressionException(messages.invalidToken, c)
                 }
             }
         }

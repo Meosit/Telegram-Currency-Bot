@@ -9,9 +9,7 @@ import kotlinx.html.head
 import kotlinx.html.p
 import kotlinx.html.title
 
-/**
- * @author Mikhail Snitavets
- */
+
 fun Route.rootGet() = get("/") {
     call.respondHtml {
         head {

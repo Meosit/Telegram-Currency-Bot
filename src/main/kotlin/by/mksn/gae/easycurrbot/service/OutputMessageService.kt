@@ -1,87 +1,76 @@
 package by.mksn.gae.easycurrbot.service
 
-import by.mksn.gae.easycurrbot.config.CurrenciesConfig
-import by.mksn.gae.easycurrbot.config.TelegramConfig
+import by.mksn.gae.easycurrbot.AppConfig
+import by.mksn.gae.easycurrbot.entity.ExchangeResults
+import by.mksn.gae.easycurrbot.entity.InlineQueryResultArticle
+import by.mksn.gae.easycurrbot.entity.InputTextMessageContent
 import com.google.gson.Gson
-import com.google.gson.annotations.SerializedName
 import io.ktor.client.HttpClient
 import io.ktor.client.request.parameter
 import io.ktor.client.request.post
 import io.ktor.client.request.url
-import me.ivmg.telegram.entities.InlineQuery
 import me.ivmg.telegram.entities.Message
 import me.ivmg.telegram.network.Response
 import org.slf4j.LoggerFactory
-import java.math.BigDecimal
 import java.text.DecimalFormat
-import java.util.*
 
-/**
- * @author Mikhail Snitavets
- */
-class OutputMessageService(private val httpClient: HttpClient, currConf: CurrenciesConfig, tgConf: TelegramConfig) {
+class OutputMessageService(private val httpClient: HttpClient, private val config: AppConfig) {
 
-    companion object {
-        val LOG = LoggerFactory.getLogger(OutputMessageService::class.java)!!
-    }
-
-
-    private val apiBase = tgConf.apiUrl
-    private val currencies = currConf.currencies.supported.associateBy { it.code }
     private val decimalFormat = DecimalFormat("#0.##")
     private val gson = Gson()
 
-    private fun generateOutputMarkdown(results: Map<String, BigDecimal>) =
-            results.mapKeys { currencies.getValue(it.key) }.entries
-                    .joinToString("\n") { "${it.key.symbol} `${decimalFormat.format(it.value)}`" }
-
-    suspend fun sendResultMessage(message: Message, results: Map<String, BigDecimal>) {
-        val markdown = generateOutputMarkdown(results)
-        httpClient.post<Response<Message>> {
-            url("$apiBase/sendMessage")
-            parameter("text", markdown)
-            parameter("parse_mode", "Markdown")
-            parameter("chat_id", message.chat.id.toString())
-            parameter("reply_to_message_id", message.messageId.toString())
-        }
+    private fun generateOutputMarkdown(results: ExchangeResults): String {
+        val exprPrefix = if (results.input.sumExpression.toBigDecimalOrNull() == null)
+            "#️⃣ _${results.input.sumExpression}=_\n" else ""
+        return exprPrefix + results.rates.joinToString(separator = "\n") { "${it.currency.symbol} `${decimalFormat.format(it.sum)}`" }
     }
 
-    suspend fun sendResultMarkdown(message: Message, text: String) {
+    suspend fun sendMarkdownToChat(chatId: String, text: String, replyMessageId: String? = null) {
         httpClient.post<Response<Message>> {
-            url("$apiBase/sendMessage")
+            url("${config.telegram.apiUrl}/sendMessage")
             parameter("text", text)
             parameter("parse_mode", "Markdown")
-            parameter("chat_id", message.chat.id.toString())
-            parameter("reply_to_message_id", message.messageId.toString())
+            parameter("chat_id", chatId)
+            replyMessageId?.let { parameter("reply_to_message_id", it) }
         }
     }
 
-    suspend fun sendResultQuery(query: InlineQuery, results: Map<String, BigDecimal>) {
+    suspend fun sendResultToChat(chatId: String, results: ExchangeResults, replyMessageId: String? = null) {
         val markdown = generateOutputMarkdown(results)
+        httpClient.post<String> {
+            url("${config.telegram.apiUrl}/sendMessage")
+            parameter("text", markdown)
+            parameter("parse_mode", "Markdown")
+            parameter("chat_id", chatId)
+            replyMessageId?.let { parameter("reply_to_message_id", it) }
+        }
+    }
+
+    suspend fun sendResultToInlineQuery(queryId: String, results: ExchangeResults) {
+        val markdown = generateOutputMarkdown(results)
+        val queryDescription = markdown
+                .replace("`", "")
+                .replace("_", "")
+                .replace("\n", " ")
+
+        val title = with(results.rates.first()) {
+            val convertedCurrencies = results.input.targets.drop(1).joinToString(", ") { it }
+            "${decimalFormat.format(sum)} ${currency.code} ⇒ $convertedCurrencies"
+        }
+
         val json = gson.toJson(listOf(InlineQueryResultArticle(
-                title = with(results.entries.first()) { "${decimalFormat.format(value)} $key ⇒ ${results.entries.drop(1).joinToString(", ") { it.key }}" },
-                description = markdown.replace("`", "").replace("\n", " "),
+                title = title,
+                description = queryDescription,
                 inputMessageContent = InputTextMessageContent(markdown, "Markdown")
         )))
-        LOG.info(json)
-        val res = httpClient.post<String> {
-            url("$apiBase/answerInlineQuery")
-            parameter("inline_query_id", query.id)
+
+
+        httpClient.post<Response<Boolean>> {
+            url("${config.telegram.apiUrl}/answerInlineQuery")
+            parameter("inline_query_id", queryId)
             parameter("results", json)
         }
-        LOG.info(res)
     }
 
-    data class InlineQueryResultArticle(
-            val type: String = "article",
-            val id: String = UUID.randomUUID().toString(),
-            val title: String,
-            val description: String,
-            @SerializedName("input_message_content") val inputMessageContent: InputTextMessageContent
-    )
 
-    data class InputTextMessageContent(
-            @SerializedName("message_text") val messageText: String,
-            @SerializedName("parse_mode") val parseMode: String
-    )
 }
