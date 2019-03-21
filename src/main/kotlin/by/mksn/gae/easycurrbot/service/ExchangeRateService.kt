@@ -69,16 +69,16 @@ class ExchangeRateService(private val httpClient: HttpClient, private val config
                     .filter { supportedCurrencies.containsKey(it.currencyAbbreviation ) }
                     .associateBy(
                             { it.currencyAbbreviation },
-                            { it.currencyRate!!.setScale(8, RoundingMode.HALF_EVEN) / it.currencyScale.toBigDecimal() }
+                            { it.currencyRate!!.setScale(config.currencies.internalPrecision, RoundingMode.HALF_EVEN) / it.currencyScale.toBigDecimal() }
                     )
-            exchangeRates = exchangeRates + (config.currencies.base to 1.toBigDecimal().setScale(8, RoundingMode.HALF_EVEN))
+            exchangeRates = exchangeRates + (config.currencies.base to 1.toBigDecimal().setScale(config.currencies.internalPrecision, RoundingMode.HALF_EVEN))
             LOG.info("Loaded ${exchangeRates.size} rates:\n"
                     + exchangeRates.map { "${it.key} -> ${it.value}" }.joinToString(separator = "\n"))
             previousUpdateDate = LocalDateTime.parse(rawExchangeRates.first().exchangeDate)
 
             exchangeRatesDashboard = config.currencies.dashboard.asSequence()
                     .map { supportedCurrencies.getValue(it) }
-                    .map { it.toOneUnitInputQuery(supportedCurrencies.keys.toList()) }
+                    .map { it.toOneUnitInputQuery(config.currencies.internalPrecision, supportedCurrencies.keys.toList()) }
                     .map { exchange(it) }
                     .toList().toTypedArray()
         }
