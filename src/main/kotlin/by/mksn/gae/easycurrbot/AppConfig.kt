@@ -13,10 +13,14 @@ data class AppConfig(
 ) {
     data class Currencies(
             val apiUrl: String,
+            val internalPrecision: Int,
+            val outputSumPattern: String,
             val base: String,
             val default: List<String>,
+            val dashboard: List<String>,
             val supported: List<Currency>
     )
+
     data class Telegram(
             val token: String,
             val apiUrl: String
@@ -32,8 +36,16 @@ data class AppConfig(
     ) {
         data class Telegram(
                 val start: String,
-                val help: String
-        )
+                val help: String,
+                val inlineTitles: InlineTitles
+        ) {
+            data class InlineTitles(
+                    val exchange: String,
+                    val calculate: String,
+                    val dashboard: String
+            )
+        }
+
         data class Expressions(
                 val invalidValueProvided: String,
                 val illegalOperationResult: String,

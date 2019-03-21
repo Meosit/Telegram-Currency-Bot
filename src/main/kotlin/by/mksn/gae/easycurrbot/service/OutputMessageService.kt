@@ -11,17 +11,21 @@ import io.ktor.client.request.post
 import io.ktor.client.request.url
 import me.ivmg.telegram.entities.Message
 import me.ivmg.telegram.network.Response
-import org.slf4j.LoggerFactory
 import java.text.DecimalFormat
 
 class OutputMessageService(private val httpClient: HttpClient, private val config: AppConfig) {
 
-    private val decimalFormat = DecimalFormat("#0.##")
+    private val decimalFormat = DecimalFormat(config.currencies.outputSumPattern)
     private val gson = Gson()
 
     private fun generateOutputMarkdown(results: ExchangeResults): String {
-        val exprPrefix = if (results.input.sumExpression.toBigDecimalOrNull() == null)
-            "#️⃣ _${results.input.sumExpression}=_\n" else ""
+        val exprPrefix = when {
+            results.input.sumExpression.toBigDecimalOrNull() == null ->
+                "#️⃣ _${results.input.sumExpression}=_\n"
+            results.input.sumExpression == "1" ->
+                "\uD83D\uDCB9 _${config.messages.telegram.inlineTitles.dashboard.format(results.input.base)}_\n"
+            else -> ""
+        }
         return exprPrefix + results.rates.joinToString(separator = "\n") { "${it.currency.symbol} `${decimalFormat.format(it.sum)}`" }
     }
 
@@ -46,29 +50,52 @@ class OutputMessageService(private val httpClient: HttpClient, private val confi
         }
     }
 
-    suspend fun sendResultToInlineQuery(queryId: String, results: ExchangeResults) {
-        val markdown = generateOutputMarkdown(results)
-        val queryDescription = markdown
-                .replace("`", "")
-                .replace("_", "")
-                .replace("\n", " ")
+    suspend fun sendResultToInlineQuery(queryId: String, vararg resultsList: ExchangeResults) {
+        val inlineResults = resultsList.map { results ->
+            val markdown = generateOutputMarkdown(results)
+            val queryDescription = markdown.replace("`", "")
+                    .replace("_", "")
+                    .replace("\n", " ")
+            val title = if (results.input.sumExpression == "1") {
+                config.messages.telegram.inlineTitles.dashboard.format(results.input.base)
+            } else with(results.rates.first()) {
+                config.messages.telegram.inlineTitles.exchange.format(
+                        decimalFormat.format(sum),
+                        currency.code,
+                        results.input.targets.drop(1).joinToString(", ") { it }
+                )
+            }
 
-        val title = with(results.rates.first()) {
-            val convertedCurrencies = results.input.targets.drop(1).joinToString(", ") { it }
-            "${decimalFormat.format(sum)} ${currency.code} ⇒ $convertedCurrencies"
+            val thumbUrl = if (results.input.sumExpression == "1")
+                "${config.serverUrl}/thumbs/dashboard.png" else "${config.serverUrl}/thumbs/exchange.png"
+            InlineQueryResultArticle(
+                    title = title,
+                    description = queryDescription,
+                    inputMessageContent = InputTextMessageContent(markdown, "Markdown"),
+                    thumbUrl = thumbUrl
+            )
         }
 
-        val json = gson.toJson(listOf(InlineQueryResultArticle(
-                title = title,
-                description = queryDescription,
-                inputMessageContent = InputTextMessageContent(markdown, "Markdown")
-        )))
 
+        val resultsJson = if (resultsList.size == 1 && resultsList.single().input.sumExpression.toBigDecimalOrNull() == null) {
+            val results = resultsList.single()
+            gson.toJson(inlineResults + InlineQueryResultArticle(
+                    title = config.messages.telegram.inlineTitles.calculate,
+                    description = "${results.input.sumExpression} = ${decimalFormat.format(results.input.sum)}",
+                    inputMessageContent = InputTextMessageContent(
+                            "`${results.input.sumExpression} = ${decimalFormat.format(results.input.sum)}`",
+                            "Markdown"
+                    ),
+                    thumbUrl = "${config.serverUrl}/thumbs/calculate.png"
+            ))
+        } else {
+            gson.toJson(inlineResults)
+        }
 
         httpClient.post<Response<Boolean>> {
             url("${config.telegram.apiUrl}/answerInlineQuery")
             parameter("inline_query_id", queryId)
-            parameter("results", json)
+            parameter("results", resultsJson)
         }
     }
 

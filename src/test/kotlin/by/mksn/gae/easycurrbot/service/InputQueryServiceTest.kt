@@ -23,7 +23,7 @@ class InputQueryServiceTest {
         val res = service.parse(input).get()
         assertThat(res.base, `is`("BYN"))
         assertThat(res.sumExpression, `is`("12012.12"))
-        assertThat(res.sum, `is`("12012.1200".toBigDecimal()))
+        assertThat(res.sum, `is`("12012.12000000".toBigDecimal()))
         assertThat(res.targets, `is`(listOf("BYN", "USD", "EUR", "RUB")))
 
     }
@@ -34,8 +34,8 @@ class InputQueryServiceTest {
         val input = "3-(2*3)+1"
         val res = service.parse(input).get()
         assertThat(res.base, `is`("BYN"))
-        assertThat(res.sumExpression, `is`("3-(2*3)+1"))
-        assertThat(res.sum, `is`("2.0000".toBigDecimal()))
+        assertThat(res.sumExpression, `is`("3 - (2*3) + 1"))
+        assertThat(res.sum, `is`("2.00000000".toBigDecimal()))
         assertThat(res.targets, `is`(listOf("BYN", "USD", "EUR", "RUB")))
     }
 
@@ -44,9 +44,59 @@ class InputQueryServiceTest {
         val input = "0,1+0,2"
         val res = service.parse(input).get()
         assertThat(res.base, `is`("BYN"))
-        assertThat(res.sumExpression, `is`("0.1+0.2"))
-        assertThat(res.sum, `is`("0.3000".toBigDecimal()))
+        assertThat(res.sumExpression, `is`("0.1 + 0.2"))
+        assertThat(res.sum, `is`("0.30000000".toBigDecimal()))
         assertThat(res.targets, `is`(listOf("BYN", "USD", "EUR", "RUB")))
+    }
+
+    @Test
+    fun `parse expression query 3`() {
+        val input = "0,1 + 0,2"
+        val res = service.parse(input).get()
+        assertThat(res.base, `is`("BYN"))
+        assertThat(res.sumExpression, `is`("0.1 + 0.2"))
+        assertThat(res.sum, `is`("0.30000000".toBigDecimal()))
+        assertThat(res.targets, `is`(listOf("BYN", "USD", "EUR", "RUB")))
+    }
+
+    @Test
+    fun `parse expression query 4`() {
+        val input = "(0,1 + 0,2) / (2 ^ 2) +CZK"
+        val res = service.parse(input).get()
+        assertThat(res.base, `is`("BYN"))
+        assertThat(res.sumExpression, `is`("(0.1 + 0.2)/(2^2)"))
+        assertThat(res.sum, `is`("0.07500000".toBigDecimal()))
+        assertThat(res.targets, `is`(listOf("BYN", "USD", "EUR", "RUB", "CZK")))
+    }
+
+    @Test
+    fun `parse expression query 5`() {
+        val input = "2+7--7 +CZK"
+        val res = service.parse(input).get()
+        assertThat(res.base, `is`("BYN"))
+        assertThat(res.sumExpression, `is`("2 + 7 - (-7)"))
+        assertThat(res.sum, `is`("16.00000000".toBigDecimal()))
+        assertThat(res.targets, `is`(listOf("BYN", "USD", "EUR", "RUB", "CZK")))
+    }
+
+    @Test
+    fun `parse expression query 6`() {
+        val input = "-7+2+7 +CZK"
+        val res = service.parse(input).get()
+        assertThat(res.base, `is`("BYN"))
+        assertThat(res.sumExpression, `is`("(-7) + 2 + 7"))
+        assertThat(res.sum, `is`("2.00000000".toBigDecimal()))
+        assertThat(res.targets, `is`(listOf("BYN", "USD", "EUR", "RUB", "CZK")))
+    }
+
+    @Test
+    fun `parse expression query 7`() {
+        val input = "2+7* - 2 +CZK"
+        val res = service.parse(input).get()
+        assertThat(res.base, `is`("BYN"))
+        assertThat(res.sumExpression, `is`("2 + 7*(-2)"))
+        assertThat(res.sum, `is`("12.00000000".toBigDecimal()))
+        assertThat(res.targets, `is`(listOf("BYN", "USD", "EUR", "RUB", "CZK")))
     }
 
     @Test
@@ -99,7 +149,7 @@ class InputQueryServiceTest {
         val res = service.parse(input).get()
         assertThat(res.base, `is`("USD"))
         assertThat(res.sumExpression, `is`("18"))
-        assertThat(res.sum, `is`("18.0000".toBigDecimal()))
+        assertThat(res.sum, `is`("18.00000000".toBigDecimal()))
         assertThat(res.targets, `is`(listOf("USD", "BYN", "EUR", "RUB")))
     }
 
@@ -108,7 +158,7 @@ class InputQueryServiceTest {
         val input = "18 +nonmatch +кроны "
         val res = service.parse(input).get()
         assertThat(res.base, `is`("BYN"))
-        assertThat(res.sum, `is`("18.0000".toBigDecimal()))
+        assertThat(res.sum, `is`("18.00000000".toBigDecimal()))
         assertThat(res.targets, `is`(listOf("BYN", "USD", "EUR", "RUB", "CZK")))
     }
 
@@ -117,7 +167,7 @@ class InputQueryServiceTest {
         val input = "18 -br -евро"
         val res = service.parse(input).get()
         assertThat(res.base, `is`("BYN"))
-        assertThat(res.sum, `is`("18.0000".toBigDecimal()))
+        assertThat(res.sum, `is`("18.00000000".toBigDecimal()))
         assertThat(res.targets, `is`(listOf("BYN", "USD", "RUB")))
     }
 
@@ -126,7 +176,7 @@ class InputQueryServiceTest {
         val input = "18 +br -br +евро +BYN -USD +злотые"
         val res = service.parse(input).get()
         assertThat(res.base, `is`("BYN"))
-        assertThat(res.sum, `is`("18.0000".toBigDecimal()))
+        assertThat(res.sum, `is`("18.00000000".toBigDecimal()))
         assertThat(res.targets, `is`(listOf("BYN", "EUR", "RUB", "PLN")))
     }
 
@@ -136,7 +186,7 @@ class InputQueryServiceTest {
         val input = "18грн -р"
         val res = service.parse(input).get()
         assertThat(res.base, `is`("UAH"))
-        assertThat(res.sum, `is`("18.0000".toBigDecimal()))
+        assertThat(res.sum, `is`("18.00000000".toBigDecimal()))
         assertThat(res.targets, `is`(listOf("UAH", "BYN", "USD", "EUR")))
     }
 

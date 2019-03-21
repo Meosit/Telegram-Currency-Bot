@@ -34,7 +34,8 @@ data class InlineQueryResultArticle(
         val id: String = UUID.randomUUID().toString(),
         val title: String,
         val description: String,
-        @SerializedName("input_message_content") val inputMessageContent: InputTextMessageContent
+        @SerializedName("input_message_content") val inputMessageContent: InputTextMessageContent,
+        @SerializedName("thumb_url") val thumbUrl: String? = null
 )
 
 data class InputTextMessageContent(

@@ -8,8 +8,11 @@ import io.ktor.client.request.get
 import kotlinx.coroutines.runBlocking
 import org.slf4j.LoggerFactory
 import java.math.BigDecimal
+import java.math.MathContext
+import java.math.RoundingMode
 import java.time.Duration
 import java.time.LocalDateTime
+import java.time.LocalTime
 import java.time.ZoneId
 
 private data class RawExchangeRate(
@@ -29,6 +32,7 @@ class ExchangeRateService(private val httpClient: HttpClient, private val config
     private val supportedCurrencies = config.currencies.supported.associateBy { it.code }
     private var previousUpdateDate: LocalDateTime
     private lateinit var exchangeRates: Map<String, BigDecimal>
+    private lateinit var exchangeRatesDashboard: Array<ExchangeResults>
 
     init {
         previousUpdateDate = LocalDateTime.parse("1970-01-01T01:01:01")
@@ -47,9 +51,16 @@ class ExchangeRateService(private val httpClient: HttpClient, private val config
         )
     }
 
+    fun ratesDashboard(): Array<ExchangeResults> {
+        invalidateExchangeRates()
+        return exchangeRatesDashboard
+    }
+
     @Synchronized
     private fun invalidateExchangeRates() {
-        val hours = Duration.between(previousUpdateDate, LocalDateTime.now(ZoneId.of("UTC+3"))).toHours()
+        val now = LocalDateTime.now(ZoneId.of("UTC+3"))
+        val hours = Duration.between(previousUpdateDate, now).toHours()
+        LOG.info("Comparing... [$now - $previousUpdateDate = $hours hours]")
         if (hours >= 24) {
             LOG.info("Reloading exchange rates...")
             val rawExchangeRates = runBlocking { httpClient.get<List<RawExchangeRate>>(config.currencies.apiUrl) }
@@ -58,12 +69,18 @@ class ExchangeRateService(private val httpClient: HttpClient, private val config
                     .filter { supportedCurrencies.containsKey(it.currencyAbbreviation ) }
                     .associateBy(
                             { it.currencyAbbreviation },
-                            { it.currencyRate!! / it.currencyScale.toBigDecimal() }
+                            { it.currencyRate!!.setScale(8, RoundingMode.HALF_EVEN) / it.currencyScale.toBigDecimal() }
                     )
-            exchangeRates = exchangeRates + (config.currencies.base to 1.toBigDecimal())
+            exchangeRates = exchangeRates + (config.currencies.base to 1.toBigDecimal().setScale(8, RoundingMode.HALF_EVEN))
             LOG.info("Loaded ${exchangeRates.size} rates:\n"
                     + exchangeRates.map { "${it.key} -> ${it.value}" }.joinToString(separator = "\n"))
             previousUpdateDate = LocalDateTime.parse(rawExchangeRates.first().exchangeDate)
+
+            exchangeRatesDashboard = config.currencies.dashboard.asSequence()
+                    .map { supportedCurrencies.getValue(it) }
+                    .map { it.toOneUnitInputQuery(supportedCurrencies.keys.toList()) }
+                    .map { exchange(it) }
+                    .toList().toTypedArray()
         }
     }
 

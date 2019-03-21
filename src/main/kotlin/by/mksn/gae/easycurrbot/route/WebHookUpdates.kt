@@ -48,12 +48,27 @@ fun Routing.handleUpdate(config: AppConfig, httpClient: HttpClient, serverStartT
 private suspend fun InlineQuery.handle(inputService: InputQueryService,
                                        exchangeService: ExchangeRateService,
                                        outputService: OutputMessageService) {
-    val parsedQuery = inputService.parse(query)
     val user = with(from) { username ?: "$firstName $lastName" }
-    LOG.info("User: $user\nInput: '$query'\nParsed: $parsedQuery")
-    parsedQuery.success {
-        val exchangeResults = exchangeService.exchange(it)
-        outputService.sendResultToInlineQuery(id, exchangeResults)
+    when {
+        query.isBlank() -> {
+            LOG.info("[InlineQuery] User: $user\n Empty query dashboard")
+            val exchangeResultsList = exchangeService.ratesDashboard()
+            outputService.sendResultToInlineQuery(id, *exchangeResultsList)
+        }
+        else -> {
+            val parsedQuery = inputService.parse(query)
+            LOG.info("[InlineQuery] User: $user\nInput: '$query'\nParsed: $parsedQuery")
+            parsedQuery.success {
+                val exchangeResults = exchangeService.exchange(it)
+                outputService.sendResultToInlineQuery(id, exchangeResults)
+            }
+        }
+    }
+    if (query.isBlank()) {
+        LOG.info("Ignored empty query")
+        return
+    } else {
+
     }
 }
 
@@ -66,10 +81,11 @@ private suspend fun Message.handle(config: AppConfig,
                 .sendMarkdownToChat(chat.id.toString(), config.messages.telegram.start)
         "/help" -> outputService
                 .sendMarkdownToChat(chat.id.toString(), config.messages.telegram.help)
+        "", null -> Unit
         else -> {
             val user = with(chat) { username ?: "$firstName $lastName" }
             val query = inputService.parse(text!!)
-            LOG.info("User: $user\nInput: '$text'\nParsed: $query")
+            LOG.info("[Message] User: $user\nInput: '$text'\nParsed: $query")
             query.fold(success = {
                 val exchangeResults = exchangeService.exchange(it)
                 outputService.sendResultToChat(chat.id.toString(), exchangeResults, replyMessageId = messageId.toString())

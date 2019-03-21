@@ -14,6 +14,9 @@ data class InputQuery(
 
 data class Currency(val code: String, val symbol: String, val matchPatterns: List<String>)
 
+fun Currency.toOneUnitInputQuery(targets: List<String>) =
+        InputQuery("1 $code", "1", 1.toBigDecimal(), code, targets)
+
 data class ExchangedSum(val currency: Currency, val sum: BigDecimal)
 
 data class ExchangeResults(val input: InputQuery, val rates: List<ExchangedSum>)
