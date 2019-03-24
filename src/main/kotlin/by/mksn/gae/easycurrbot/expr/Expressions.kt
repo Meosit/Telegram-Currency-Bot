@@ -4,12 +4,11 @@ import by.mksn.gae.easycurrbot.AppConfig
 import by.mksn.gae.easycurrbot.expr.internal.*
 import java.math.BigDecimal
 import java.math.MathContext
-import java.math.RoundingMode
 
 class ExpressionException(message: String, vararg args: Any)
     : RuntimeException(String.format(message, *args))
 
-class Expressions(private val messages: AppConfig.Messages.Expressions) {
+class Expressions(private val messages: AppConfig.Messages.Errors) {
 
     private val mathContext = MathContext.DECIMAL64
 

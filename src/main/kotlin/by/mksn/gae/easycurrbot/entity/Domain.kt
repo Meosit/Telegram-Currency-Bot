@@ -5,6 +5,28 @@ import java.math.BigDecimal
 import java.math.RoundingMode
 
 
+//sealed class InputBaseQuery(
+//        val rawQuery: String,
+//        val base: String,
+//        val targets: List<String>
+//)
+//
+//class SingleCurrencyInputQuery(
+//        rawQuery: String,
+//        base: String,
+//        targets: List<String>,
+//        val sumExpression: String,
+//        val sum: BigDecimal
+//) : InputBaseQuery(rawQuery, base, targets)
+//
+//class MultiCurrencyInputQuery(
+//        rawQuery: String,
+//        base: String,
+//        targets: List<String>,
+//        val sumExpression: String,
+//        val sumValues: List<>
+//) : InputBaseQuery(rawQuery, base, targets)
+
 data class InputQuery(
         val rawQuery: String,
         val sumExpression: String,
@@ -22,7 +44,7 @@ data class ExchangedSum(val currency: Currency, val sum: BigDecimal)
 
 data class ExchangeResults(val input: InputQuery, val rates: List<ExchangedSum>)
 
-sealed class Result<out V, out E>{
+sealed class Result<out V, out E> {
 
     open operator fun component1(): V? = null
     open operator fun component2(): E? = null

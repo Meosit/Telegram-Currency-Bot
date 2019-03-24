@@ -32,7 +32,7 @@ data class AppConfig(
     )
     data class Messages(
             val telegram: Telegram,
-            val expressions: Expressions
+            val errors: Errors
     ) {
         data class Telegram(
                 val start: String,
@@ -46,7 +46,8 @@ data class AppConfig(
             )
         }
 
-        data class Expressions(
+        data class Errors(
+                val invalidMatcherProvided: String,
                 val invalidValueProvided: String,
                 val illegalOperationResult: String,
                 val emptyExpression: String,

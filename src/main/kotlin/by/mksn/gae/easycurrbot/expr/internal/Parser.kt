@@ -5,7 +5,7 @@ import by.mksn.gae.easycurrbot.expr.ExpressionException
 import by.mksn.gae.easycurrbot.expr.internal.TokenType.*
 import java.math.BigDecimal
 
-internal class Parser(private val tokens: List<Token>, private val messages: AppConfig.Messages.Expressions) {
+internal class Parser(private val tokens: List<Token>, private val messages: AppConfig.Messages.Errors) {
 
     private var current = 0
 

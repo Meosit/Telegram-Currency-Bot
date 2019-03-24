@@ -1,18 +1,19 @@
 package by.mksn.gae.easycurrbot.service
 
 import by.mksn.gae.easycurrbot.AppConfig
-import by.mksn.gae.easycurrbot.entity.*
+import by.mksn.gae.easycurrbot.entity.ExchangeResults
+import by.mksn.gae.easycurrbot.entity.ExchangedSum
+import by.mksn.gae.easycurrbot.entity.InputQuery
+import by.mksn.gae.easycurrbot.entity.toOneUnitInputQuery
 import com.google.gson.annotations.SerializedName
 import io.ktor.client.HttpClient
 import io.ktor.client.request.get
 import kotlinx.coroutines.runBlocking
 import org.slf4j.LoggerFactory
 import java.math.BigDecimal
-import java.math.MathContext
 import java.math.RoundingMode
 import java.time.Duration
 import java.time.LocalDateTime
-import java.time.LocalTime
 import java.time.ZoneId
 
 private data class RawExchangeRate(
@@ -51,6 +52,11 @@ class ExchangeRateService(private val httpClient: HttpClient, private val config
         )
     }
 
+    fun exchangeToApiBase(value: BigDecimal, code: String): BigDecimal {
+        invalidateExchangeRates()
+        return value.toApiBaseValue(code)
+    }
+
     fun ratesDashboard(): Array<ExchangeResults> {
         invalidateExchangeRates()
         return exchangeRatesDashboard
@@ -60,7 +66,6 @@ class ExchangeRateService(private val httpClient: HttpClient, private val config
     private fun invalidateExchangeRates() {
         val now = LocalDateTime.now(ZoneId.of("UTC+3"))
         val hours = Duration.between(previousUpdateDate, now).toHours()
-        LOG.info("Comparing... [$now - $previousUpdateDate = $hours hours]")
         if (hours >= 24) {
             LOG.info("Reloading exchange rates...")
             val rawExchangeRates = runBlocking { httpClient.get<List<RawExchangeRate>>(config.currencies.apiUrl) }
@@ -84,12 +89,12 @@ class ExchangeRateService(private val httpClient: HttpClient, private val config
         }
     }
 
-    private fun BigDecimal.toApiBaseValue(base: String) =
-            if (base == config.currencies.base) {
+    private fun BigDecimal.toApiBaseValue(sourceBase: String) =
+            if (sourceBase == config.currencies.base) {
                 this
             } else {
-                val rate = exchangeRates[base]
-                        ?: throw IllegalArgumentException("Unknown base currency provided ($base)")
+                val rate = exchangeRates[sourceBase]
+                        ?: throw IllegalArgumentException("Unknown currency provided ($sourceBase)")
                 this * rate
             }
 

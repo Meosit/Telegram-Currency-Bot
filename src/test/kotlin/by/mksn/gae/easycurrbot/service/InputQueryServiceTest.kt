@@ -155,7 +155,7 @@ class InputQueryServiceTest {
 
     @Test
     fun `parse query with additions`() {
-        val input = "18 +nonmatch +кроны "
+        val input = "18 +кроны +br"
         val res = service.parse(input).get()
         assertThat(res.base, `is`("BYN"))
         assertThat(res.sum, `is`("18.00000000".toBigDecimal()))

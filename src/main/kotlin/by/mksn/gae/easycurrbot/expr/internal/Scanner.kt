@@ -7,7 +7,7 @@ import by.mksn.gae.easycurrbot.expr.internal.TokenType.*
 
 internal class Scanner(private val source: String,
                        private val mathContext: MathContext,
-                       private val messages: AppConfig.Messages.Expressions) {
+                       private val messages: AppConfig.Messages.Errors) {
 
     private val tokens: MutableList<Token> = mutableListOf()
     private var start = 0

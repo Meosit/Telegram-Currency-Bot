@@ -8,7 +8,7 @@ import java.math.MathContext
 import java.math.RoundingMode
 
 internal class Evaluator(private val mathContext: MathContext,
-                         private val messages: AppConfig.Messages.Expressions) : ExprVisitor<BigDecimal> {
+                         private val messages: AppConfig.Messages.Errors) : ExprVisitor<BigDecimal> {
 
     fun eval(expr: Expr): BigDecimal {
         return expr.accept(this)
