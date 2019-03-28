@@ -26,6 +26,7 @@ repositories {
     maven { url = uri("https://kotlin.bintray.com/ktor") }
     maven { url = uri("https://kotlin.bintray.com/kotlinx") }
     maven { url = uri("https://jitpack.io") }
+    maven { url = uri("https://dl.bintray.com/hotkeytlt/maven") }
 }
 
 configure<JavaPluginConvention> {
@@ -48,13 +49,16 @@ dependencies {
     compile(ktor("client-json", ktorVersion))
     compile(ktor("client-json-jvm", ktorVersion))
     compile(ktor("client-gson", ktorVersion))
+    compile(ktor("client-apache", ktorVersion))
     compile(ktor("server-servlet", ktorVersion))
+
     compile("io.github.seik.kotlin-telegram-bot:telegram:0.3.5")
     compile("com.google.appengine:appengine-api-1.0-sdk:1.9.71")
     compile("commons-io:commons-io:2.6")
     compile("com.google.cloud:google-cloud-logging-logback:0.67.0-alpha")
     compile("com.google.http-client:google-http-client:1.23.0")
     compile("io.github.config4k:config4k:0.4.1")
+    compile("com.github.h0tk3y.betterParse:better-parse-jvm:0.4.0-alpha-3")
 
     testCompile("junit", "junit", "4.12")
 }

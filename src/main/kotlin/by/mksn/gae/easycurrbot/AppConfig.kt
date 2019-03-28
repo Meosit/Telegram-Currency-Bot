@@ -9,13 +9,13 @@ data class AppConfig(
         val currencies: Currencies,
         val telegram: Telegram,
         val routes: Routes,
-        val messages: Messages
+        val strings: Strings
 ) {
     data class Currencies(
             val apiUrl: String,
             val internalPrecision: Int,
             val outputSumPattern: String,
-            val base: String,
+            val apiBase: String,
             val default: List<String>,
             val dashboard: List<String>,
             val supported: List<Currency>
@@ -25,13 +25,16 @@ data class AppConfig(
             val token: String,
             val apiUrl: String
     )
+
     data class Routes(
             val updates: String,
             val register: String,
             val unregister: String
     )
-    data class Messages(
+
+    data class Strings(
             val telegram: Telegram,
+            val tokenNames: TokenNames,
             val errors: Errors
     ) {
         data class Telegram(
@@ -46,18 +49,27 @@ data class AppConfig(
             )
         }
 
+        data class TokenNames(
+                val number: String,
+                val leftPar: String,
+                val rightPar: String,
+                val multiply: String,
+                val divide: String,
+                val minus: String,
+                val plus: String,
+                val whitespace: String,
+                val currency: String
+        )
+
         data class Errors(
                 val invalidMatcherProvided: String,
-                val invalidValueProvided: String,
-                val illegalOperationResult: String,
-                val emptyExpression: String,
-                val invalidBinaryOperator: String,
-                val invalidUnaryOperator: String,
-                val invalidToken: String,
-                val expectedEOF: String,
-                val invalidRightOperand: String,
-                val emptyLeftOperand: String,
-                val unclosedParentheses: String
+                val illegalCurrencyPlacement: String,
+                val unparsedReminder: String,
+                val mismatchedToken: String,
+                val noMatchingToken: String,
+                val unexpectedEOF: String,
+                val divisionByZero: String,
+                val unexpectedError: String
         )
     }
 

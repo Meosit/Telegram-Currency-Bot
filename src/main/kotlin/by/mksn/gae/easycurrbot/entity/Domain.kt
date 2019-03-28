@@ -5,40 +5,62 @@ import java.math.BigDecimal
 import java.math.RoundingMode
 
 
-//sealed class InputBaseQuery(
-//        val rawQuery: String,
-//        val base: String,
-//        val targets: List<String>
-//)
-//
-//class SingleCurrencyInputQuery(
-//        rawQuery: String,
-//        base: String,
-//        targets: List<String>,
-//        val sumExpression: String,
-//        val sum: BigDecimal
-//) : InputBaseQuery(rawQuery, base, targets)
-//
-//class MultiCurrencyInputQuery(
-//        rawQuery: String,
-//        base: String,
-//        targets: List<String>,
-//        val sumExpression: String,
-//        val sumValues: List<>
-//) : InputBaseQuery(rawQuery, base, targets)
+enum class ExpressionType {
+    SINGLE_VALUE, MULTI_CURRENCY_EXPR, SINGLE_CURRENCY_EXPR
+}
 
-data class InputQuery(
-        val rawQuery: String,
-        val sumExpression: String,
-        val sum: BigDecimal,
-        val base: String,
-        val targets: List<String>
+data class RawInputQuery(
+        val type: ExpressionType,
+        val expression: String,
+        val expressionResult: BigDecimal,
+        val baseCurrency: String,
+        val involvedCurrencies: List<String>,
+        val addCurrencies: List<String>,
+        val removeCurrencies: List<String>
 )
 
-data class Currency(val code: String, val symbol: String, val matchPatterns: List<String>)
+data class InputQuery(
+        val rawInput: String,
+        val type: ExpressionType,
+        val expression: String,
+        val expressionResult: BigDecimal,
+        val baseCurrency: String,
+        val involvedCurrencies: List<String>,
+        val targets: List<String>
+) {
+    fun isOneUnit() = type == ExpressionType.SINGLE_VALUE && expression == "1"
+}
 
-fun Currency.toOneUnitInputQuery(internalPrecision: Int, targets: List<String>) =
-        InputQuery("1 $code", "1", 1.toBigDecimal().setScale(internalPrecision, RoundingMode.HALF_EVEN), code, targets)
+
+data class InputError(
+        val rawInput: String,
+        val errorPosition: Int,
+        val message: String
+) {
+    fun toMarkdown() = """
+        $message (at $errorPosition)
+        ```  ${"▼".padStart(if (errorPosition > rawInput.length) rawInput.length - 1 else errorPosition)}
+        > $rawInput
+          ${"▲".padStart(if (errorPosition > rawInput.length) rawInput.length - 1 else errorPosition)}```
+    """.trimIndent()
+
+    fun toSingleLine() = "[at $errorPosition] $rawInput"
+}
+
+fun String.trimToLength(n: Int, tail: String = "") =
+        if (this.length <= n) this else this.take(n - tail.length) + length
+
+data class Currency(val code: String, val symbol: String, val aliases: List<String>)
+
+fun Currency.toOneUnitInputQuery(internalPrecision: Int, targets: List<String>) = InputQuery(
+        rawInput = "1 $code",
+        type = ExpressionType.SINGLE_VALUE,
+        expression = "1",
+        expressionResult = 1.toBigDecimal().setScale(internalPrecision, RoundingMode.HALF_UP),
+        baseCurrency = code,
+        involvedCurrencies = listOf(code),
+        targets = targets
+)
 
 data class ExchangedSum(val currency: Currency, val sum: BigDecimal)
 
@@ -87,7 +109,7 @@ sealed class Result<out V, out E> {
     }
 
     companion object {
-        fun error(message: String) = Failure(message)
+        fun <E : Any> failure(v: E) = Failure(v)
         fun <V : Any> success(v: V) = Success(v)
     }
 

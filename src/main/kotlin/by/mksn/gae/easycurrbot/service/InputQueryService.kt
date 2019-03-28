@@ -1,92 +1,115 @@
 package by.mksn.gae.easycurrbot.service
 
 import by.mksn.gae.easycurrbot.AppConfig
+import by.mksn.gae.easycurrbot.entity.InputError
 import by.mksn.gae.easycurrbot.entity.InputQuery
-import by.mksn.gae.easycurrbot.expr.Expressions
-import java.math.RoundingMode
 import by.mksn.gae.easycurrbot.entity.Result
-import by.mksn.gae.easycurrbot.expr.ExpressionException
-import java.lang.ArithmeticException
-import java.math.BigDecimal
+import by.mksn.gae.easycurrbot.entity.trimToLength
+import by.mksn.gae.easycurrbot.grammar.DivisionByZero
+import by.mksn.gae.easycurrbot.grammar.InputExpressionGrammar
+import com.github.h0tk3y.betterParse.grammar.tryParseToEnd
+import com.github.h0tk3y.betterParse.parser.*
 
-class InputQueryService(private val config: AppConfig) {
+class InputQueryService(
+        private val config: AppConfig,
+        exchangeRateService: ExchangeRateService
+) {
 
-    private val currencyMatchers: Map<String, String> = config.currencies.supported
-            .flatMap { c -> c.matchPatterns.map { it.toLowerCase() to c.code } }
+    private val currencyAliases: Map<String, String> = config.currencies.supported
+            .flatMap { c -> c.aliases.map { it.toLowerCase() to c.code } }
             .toMap()
 
-    private val valueTokens = hashSetOf('.', ',', '(', ')', '+', '-', '^', '*', '/', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', ' ', '\t', '\r')
-    private val whitespaceRegex = "\\s+".toRegex()
-    private val keyStartPostfixRegex = "\\s+[+-]$".toRegex()
-    private val unaryOperatorAtStart = "^ - (\\d+)".toRegex()
-    private val unaryOperatorAfterBinary = "([-+*^] ?) - (\\d+)".toRegex()
-    private val currencyMatcherRegex = "[a-zA-Zа-яА-Я€$]+".toRegex()
+    private val currencyAliasRegex = "[a-zA-Zа-яА-Я€$]+".toRegex()
+    private val grammar = InputExpressionGrammar(config, exchangeRateService)
 
-    private val expressions = Expressions(config.messages.errors)
 
-    fun parse(query: String): Result<InputQuery, String> {
-        val normalizedQuery: String
-        val inputExpr: String
-        val formattedExpr: String
-        val value: BigDecimal
-
-        try {
-            normalizedQuery = query.trim()
-                    .replace(',', '.')
-                    .replace(currencyMatcherRegex) {
-                        currencyMatchers[it.value.toLowerCase()] ?: throw IllegalArgumentException(
-                                config.messages.errors.invalidMatcherProvided.format(it.value))
-                    }
-
-            inputExpr = normalizedQuery
-                    .takeWhile { it in valueTokens }
-                    .replace(keyStartPostfixRegex, "")
-
-            formattedExpr = inputExpr
-                    .replace(whitespaceRegex, "")
-                    .replace("+", " + ")
-                    .replace("-", " - ")
-                    .replace(unaryOperatorAtStart) { "(-${it.groups[1]!!.value})" }
-                    .replace(unaryOperatorAfterBinary) { "${it.groups[1]!!.value}(-${it.groups[2]!!.value})" }
-
-            value = expressions.eval(inputExpr).setScale(8, RoundingMode.HALF_EVEN)
-        } catch (e: IllegalArgumentException) {
-            return Result.error(e.message!!)
-        } catch (e: ExpressionException) {
-            return Result.error(config.messages.errors.invalidValueProvided.format(e.message))
-        } catch (e: ArithmeticException) {
-            return Result.error(config.messages.errors.illegalOperationResult)
+    private fun normalizeQuery(query: String): Result<Pair<String, Int>, InputError> {
+        var result = query.replace(',', '.').replace("\n", " ")
+        var errorPositionCorrection = 0
+        var lastPositionCorrection = 0
+        for(match in currencyAliasRegex.findAll(result).distinct()) {
+            val currency = currencyAliases[match.value.toLowerCase()]
+            if (currency == null) {
+                return Result.failure(InputError(
+                        rawInput = query.trimToLength(35, tail = "…"),
+                        errorPosition = match.range.start + 1,
+                        message = config.strings.errors.invalidMatcherProvided.format(match.value)
+                ))
+            } else {
+                result = result.replace(match.value, currency)
+            }
+            lastPositionCorrection = match.value.length - currency.length
+            errorPositionCorrection += lastPositionCorrection
         }
+        return Result.success(result to (errorPositionCorrection - lastPositionCorrection))
+    }
 
-        val parameters = normalizedQuery.removePrefix(inputExpr).split(whitespaceRegex)
-                .asSequence()
-                .map { it.trim() }
-                .filter { it.isNotBlank() }
+    private fun ErrorResult.toInputError(rawInput: String, errorPositionCorrection: Int): InputError = when {
+        this is UnparsedRemainder -> InputError(
+                rawInput = rawInput.trimToLength(35, tail = "…"),
+                errorPosition = startsWith.column + errorPositionCorrection,
+                message = if (grammar.isCurrency(startsWith)) config.strings.errors.illegalCurrencyPlacement else config.strings.errors.unparsedReminder
+        )
+        this is MismatchedToken -> InputError(
+                rawInput = rawInput.trimToLength(35, tail = "…"),
+                errorPosition = found.column + errorPositionCorrection,
+                message = config.strings.errors.mismatchedToken.format(found.text, expected.name)
+        )
+        this is NoMatchingToken -> InputError(
+                rawInput = rawInput.trimToLength(35, tail = "…"),
+                errorPosition = tokenMismatch.column + errorPositionCorrection,
+                message = config.strings.errors.noMatchingToken.format(tokenMismatch.text)
+        )
+        this is UnexpectedEof -> InputError(
+                rawInput = rawInput.trimToLength(35, tail = "…"),
+                errorPosition = rawInput.trim().length + errorPositionCorrection,
+                message = config.strings.errors.unexpectedEOF.format(expected.name)
+        )
+        this is DivisionByZero -> InputError(
+                rawInput = rawInput.trimToLength(35, tail = "…"),
+                errorPosition = zeroToken.column + errorPositionCorrection,
+                message = config.strings.errors.divisionByZero
+        )
+        this is AlternativesFailure -> {
+            fun find(errors: List<ErrorResult>): ErrorResult {
+                val error = errors.last()
+                return if (error !is AlternativesFailure) error else find(error.errors)
+            }
+            find(errors).toInputError(rawInput, errorPositionCorrection)
+        }
+        else -> InputError(
+                rawInput = if (rawInput.length > 40) rawInput.take(37) + "…" else rawInput,
+                errorPosition = rawInput.trim().length,
+                message = config.strings.errors.unexpectedError
+        )
+    }
 
-        val base = parameters
-                .filterNot { it.startsWith('+') }
-                .filterNot { it.startsWith('-') }
-                .filterNotNull()
-                .firstOrNull()
-                ?: config.currencies.base
+    fun parse(query: String): Result<InputQuery, InputError> {
+        val normalizedQueryResult = normalizeQuery(query)
+        val (normalizedQuery, errorPositionCorrection) = when (normalizedQueryResult) {
+            is Result.Success -> normalizedQueryResult.value
+            is Result.Failure -> return Result.failure(normalizedQueryResult.error)
+        }
+        val parseResult = grammar.tryParseToEnd(normalizedQuery)
+        return when (parseResult) {
+            is Parsed -> with(parseResult.value) {
+                val targets = involvedCurrencies.toMutableSet()
+                targets.addAll(config.currencies.default)
+                targets.addAll(addCurrencies)
+                targets.removeAll(removeCurrencies)
 
-        val additions = parameters
-                .filter { it.startsWith('+') }
-                .map { it.removePrefix("+") }
-                .filterNotNull()
-
-        val removals = parameters
-                .filter { it.startsWith('-') }
-                .map { it.removePrefix("-") }
-                .filterNotNull()
-                .filterNot { it == base }
-
-        val targets = linkedSetOf(base)
-        targets.addAll(config.currencies.default)
-        targets.addAll(additions)
-        targets.removeAll(removals)
-
-        return Result.success(InputQuery(query, formattedExpr, value.abs(), base, targets.toList()))
+                Result.success(InputQuery(
+                        rawInput = query.trim(),
+                        type = type,
+                        expression = expression,
+                        expressionResult = expressionResult,
+                        baseCurrency = baseCurrency,
+                        involvedCurrencies = involvedCurrencies,
+                        targets = targets.toList()
+                ))
+            }
+            is ErrorResult -> Result.failure(parseResult.toInputError(query, errorPositionCorrection))
+        }
     }
 
 }

@@ -23,20 +23,23 @@ private val LOG = LoggerFactory.getLogger(Application::class.java)!!
 
 fun Routing.handleUpdate(config: AppConfig, httpClient: HttpClient, serverStartTime: GMTDate) {
 
-    val inputService = InputQueryService(config)
     val exchangeService = ExchangeRateService(httpClient, config)
+    val inputService = InputQueryService(config, exchangeService)
     val outputService = OutputMessageService(httpClient, config)
 
     post(config.routes.updates) {
         val update = call.receive<Update>()
         try {
+            exchangeService.invalidateExchangeRates()
             when {
                 update.message?.text != null -> {
                     if (update.message.happenedAfter(serverStartTime)) {
                         update.message.handle(config, inputService, exchangeService, outputService)
                     }
                 }
-                update.inlineQuery != null -> { update.inlineQuery.handle(inputService, exchangeService, outputService) }
+                update.inlineQuery != null -> {
+                    update.inlineQuery.handle(inputService, exchangeService, outputService)
+                }
             }
         } catch (e: Exception) {
             LOG.info("Unexpected error", e)
@@ -58,17 +61,13 @@ private suspend fun InlineQuery.handle(inputService: InputQueryService,
         else -> {
             val parsedQuery = inputService.parse(query)
             LOG.info("[InlineQuery] User: $user\nInput: '$query'\nParsed: $parsedQuery")
-            parsedQuery.success {
+            parsedQuery.fold(success = {
                 val exchangeResults = exchangeService.exchange(it)
                 outputService.sendResultToInlineQuery(id, exchangeResults)
-            }
+            }, failure = {
+                outputService.sendErrorToInlineQuery(id, it)
+            })
         }
-    }
-    if (query.isBlank()) {
-        LOG.info("Ignored empty query")
-        return
-    } else {
-
     }
 }
 
@@ -78,9 +77,9 @@ private suspend fun Message.handle(config: AppConfig,
                                    outputService: OutputMessageService) {
     when (text) {
         "/start" -> outputService
-                .sendMarkdownToChat(chat.id.toString(), config.messages.telegram.start)
+                .sendMarkdownToChat(chat.id.toString(), config.strings.telegram.start)
         "/help" -> outputService
-                .sendMarkdownToChat(chat.id.toString(), config.messages.telegram.help)
+                .sendMarkdownToChat(chat.id.toString(), config.strings.telegram.help)
         "", null -> Unit
         else -> {
             val user = with(chat) { username ?: "$firstName $lastName" }
@@ -90,7 +89,7 @@ private suspend fun Message.handle(config: AppConfig,
                 val exchangeResults = exchangeService.exchange(it)
                 outputService.sendResultToChat(chat.id.toString(), exchangeResults, replyMessageId = messageId.toString())
             }, failure = {
-                outputService.sendMarkdownToChat(chat.id.toString(), it, replyMessageId = messageId.toString())
+                outputService.sendMarkdownToChat(chat.id.toString(), it.toMarkdown(), replyMessageId = messageId.toString())
             })
         }
     }

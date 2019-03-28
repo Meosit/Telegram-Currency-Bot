@@ -40,30 +40,8 @@ class ExchangeRateService(private val httpClient: HttpClient, private val config
         invalidateExchangeRates()
     }
 
-    fun exchange(inputQuery: InputQuery): ExchangeResults {
-        invalidateExchangeRates()
-        val baseValue = inputQuery.sum.toApiBaseValue(inputQuery.base)
-        return ExchangeResults(
-                input = inputQuery,
-                rates = inputQuery.targets.map { ExchangedSum(
-                        currency = supportedCurrencies.getValue(it),
-                        sum = baseValue / exchangeRates.getValue(it)
-                ) }
-        )
-    }
-
-    fun exchangeToApiBase(value: BigDecimal, code: String): BigDecimal {
-        invalidateExchangeRates()
-        return value.toApiBaseValue(code)
-    }
-
-    fun ratesDashboard(): Array<ExchangeResults> {
-        invalidateExchangeRates()
-        return exchangeRatesDashboard
-    }
-
     @Synchronized
-    private fun invalidateExchangeRates() {
+    fun invalidateExchangeRates() {
         val now = LocalDateTime.now(ZoneId.of("UTC+3"))
         val hours = Duration.between(previousUpdateDate, now).toHours()
         if (hours >= 24) {
@@ -74,9 +52,9 @@ class ExchangeRateService(private val httpClient: HttpClient, private val config
                     .filter { supportedCurrencies.containsKey(it.currencyAbbreviation ) }
                     .associateBy(
                             { it.currencyAbbreviation },
-                            { it.currencyRate!!.setScale(config.currencies.internalPrecision, RoundingMode.HALF_EVEN) / it.currencyScale.toBigDecimal() }
+                            { it.currencyRate!!.setScale(config.currencies.internalPrecision, RoundingMode.HALF_UP) / it.currencyScale.toBigDecimal() }
                     )
-            exchangeRates = exchangeRates + (config.currencies.base to 1.toBigDecimal().setScale(config.currencies.internalPrecision, RoundingMode.HALF_EVEN))
+            exchangeRates = exchangeRates + (config.currencies.apiBase to 1.toBigDecimal().setScale(config.currencies.internalPrecision, RoundingMode.HALF_UP))
             LOG.info("Loaded ${exchangeRates.size} rates:\n"
                     + exchangeRates.map { "${it.key} -> ${it.value}" }.joinToString(separator = "\n"))
             previousUpdateDate = LocalDateTime.parse(rawExchangeRates.first().exchangeDate)
@@ -89,9 +67,28 @@ class ExchangeRateService(private val httpClient: HttpClient, private val config
         }
     }
 
+    fun exchange(inputQuery: InputQuery): ExchangeResults {
+        val baseValue = inputQuery.expressionResult.toApiBaseValue(inputQuery.baseCurrency)
+        return ExchangeResults(
+                input = inputQuery,
+                rates = inputQuery.targets.map { ExchangedSum(
+                        currency = supportedCurrencies.getValue(it),
+                        sum = baseValue / exchangeRates.getValue(it)
+                ) }
+        )
+    }
+
+    fun exchangeToApiBase(value: BigDecimal, code: String): BigDecimal {
+        return value.toApiBaseValue(code)
+    }
+
+    fun ratesDashboard(): Array<ExchangeResults> {
+        return exchangeRatesDashboard
+    }
+
     private fun BigDecimal.toApiBaseValue(sourceBase: String) =
-            if (sourceBase == config.currencies.base) {
-                this
+            if (sourceBase == config.currencies.apiBase) {
+                this.setScale(config.currencies.internalPrecision, RoundingMode.HALF_UP)
             } else {
                 val rate = exchangeRates[sourceBase]
                         ?: throw IllegalArgumentException("Unknown currency provided ($sourceBase)")
