@@ -24,14 +24,14 @@ class InputQueryService(
 
 
     private fun normalizeQuery(query: String): Result<Pair<String, Int>, InputError> {
-        var result = query.replace(',', '.').replace("\n", " ")
+        var result = query.replace(',', '.')
         var errorPositionCorrection = 0
         var lastPositionCorrection = 0
         for(match in currencyAliasRegex.findAll(result).distinct()) {
             val currency = currencyAliases[match.value.toLowerCase()]
             if (currency == null) {
                 return Result.failure(InputError(
-                        rawInput = query.trimToLength(35, tail = "…"),
+                        rawInput = query.trimToLength(config.telegram.outputWidthChars, tail = "…"),
                         errorPosition = match.range.start + 1,
                         message = config.strings.errors.invalidMatcherProvided.format(match.value)
                 ))
@@ -46,27 +46,27 @@ class InputQueryService(
 
     private fun ErrorResult.toInputError(rawInput: String, errorPositionCorrection: Int): InputError = when {
         this is UnparsedRemainder -> InputError(
-                rawInput = rawInput.trimToLength(35, tail = "…"),
+                rawInput = rawInput.trimToLength(config.telegram.outputWidthChars, tail = "…"),
                 errorPosition = startsWith.column + errorPositionCorrection,
                 message = if (grammar.isCurrency(startsWith)) config.strings.errors.illegalCurrencyPlacement else config.strings.errors.unparsedReminder
         )
         this is MismatchedToken -> InputError(
-                rawInput = rawInput.trimToLength(35, tail = "…"),
+                rawInput = rawInput.trimToLength(config.telegram.outputWidthChars, tail = "…"),
                 errorPosition = found.column + errorPositionCorrection,
                 message = config.strings.errors.mismatchedToken.format(found.text, expected.name)
         )
         this is NoMatchingToken -> InputError(
-                rawInput = rawInput.trimToLength(35, tail = "…"),
+                rawInput = rawInput.trimToLength(config.telegram.outputWidthChars, tail = "…"),
                 errorPosition = tokenMismatch.column + errorPositionCorrection,
                 message = config.strings.errors.noMatchingToken.format(tokenMismatch.text)
         )
         this is UnexpectedEof -> InputError(
-                rawInput = rawInput.trimToLength(35, tail = "…"),
+                rawInput = rawInput.trimToLength(config.telegram.outputWidthChars, tail = "…"),
                 errorPosition = rawInput.trim().length + errorPositionCorrection,
                 message = config.strings.errors.unexpectedEOF.format(expected.name)
         )
         this is DivisionByZero -> InputError(
-                rawInput = rawInput.trimToLength(35, tail = "…"),
+                rawInput = rawInput.trimToLength(config.telegram.outputWidthChars, tail = "…"),
                 errorPosition = zeroToken.column + errorPositionCorrection,
                 message = config.strings.errors.divisionByZero
         )
@@ -78,14 +78,15 @@ class InputQueryService(
             find(errors).toInputError(rawInput, errorPositionCorrection)
         }
         else -> InputError(
-                rawInput = if (rawInput.length > 40) rawInput.take(37) + "…" else rawInput,
+                rawInput = rawInput.trimToLength(config.telegram.outputWidthChars, tail = "…"),
                 errorPosition = rawInput.trim().length,
                 message = config.strings.errors.unexpectedError
         )
     }
 
     fun parse(query: String): Result<InputQuery, InputError> {
-        val normalizedQueryResult = normalizeQuery(query)
+        val rawInput = query.trim().replace("\n", " ")
+        val normalizedQueryResult = normalizeQuery(rawInput)
         val (normalizedQuery, errorPositionCorrection) = when (normalizedQueryResult) {
             is Result.Success -> normalizedQueryResult.value
             is Result.Failure -> return Result.failure(normalizedQueryResult.error)
@@ -99,7 +100,7 @@ class InputQueryService(
                 targets.removeAll(removeCurrencies)
 
                 Result.success(InputQuery(
-                        rawInput = query.trim(),
+                        rawInput = rawInput,
                         type = type,
                         expression = expression,
                         expressionResult = expressionResult,
@@ -108,7 +109,7 @@ class InputQueryService(
                         targets = targets.toList()
                 ))
             }
-            is ErrorResult -> Result.failure(parseResult.toInputError(query, errorPositionCorrection))
+            is ErrorResult -> Result.failure(parseResult.toInputError(rawInput, errorPositionCorrection))
         }
     }
 

@@ -62,12 +62,12 @@ class ExchangeRateService(private val httpClient: HttpClient, private val config
             exchangeRatesDashboard = config.currencies.dashboard.asSequence()
                     .map { supportedCurrencies.getValue(it) }
                     .map { it.toOneUnitInputQuery(config.currencies.internalPrecision, supportedCurrencies.keys.toList()) }
-                    .map { exchange(it) }
+                    .map { exchangeInputQuery(it) }
                     .toList().toTypedArray()
         }
     }
 
-    fun exchange(inputQuery: InputQuery): ExchangeResults {
+    fun exchangeInputQuery(inputQuery: InputQuery): ExchangeResults {
         val baseValue = inputQuery.expressionResult.toApiBaseValue(inputQuery.baseCurrency)
         return ExchangeResults(
                 input = inputQuery,

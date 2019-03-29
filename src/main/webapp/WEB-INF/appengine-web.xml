@@ -6,6 +6,8 @@
     <static-files>
         <include path="/thumbs/**" >
         </include>
+        <include path="/scripts/**" >
+        </include>
     </static-files>
     <system-properties>
         <property name="java.util.logging.config.file" value="WEB-INF/logging.properties"/>

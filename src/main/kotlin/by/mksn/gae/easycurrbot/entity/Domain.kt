@@ -39,16 +39,16 @@ data class InputError(
 ) {
     fun toMarkdown() = """
         $message (at $errorPosition)
-        ```  ${"▼".padStart(if (errorPosition > rawInput.length) rawInput.length - 1 else errorPosition)}
+        ```  ${"▼".padStart(if (errorPosition > rawInput.length) rawInput.length else errorPosition)}
         > $rawInput
-          ${"▲".padStart(if (errorPosition > rawInput.length) rawInput.length - 1 else errorPosition)}```
+          ${"▲".padStart(if (errorPosition > rawInput.length) rawInput.length else errorPosition)}```
     """.trimIndent()
 
-    fun toSingleLine() = "[at $errorPosition] $rawInput"
+    fun toSingleLine() = "(at $errorPosition) $rawInput"
 }
 
 fun String.trimToLength(n: Int, tail: String = "") =
-        if (this.length <= n) this else this.take(n - tail.length) + length
+        if (this.length <= n) this else this.take(n - tail.length) + tail
 
 data class Currency(val code: String, val symbol: String, val aliases: List<String>)
 

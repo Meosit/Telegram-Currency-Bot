@@ -59,6 +59,7 @@ dependencies {
     compile("com.google.http-client:google-http-client:1.23.0")
     compile("io.github.config4k:config4k:0.4.1")
     compile("com.github.h0tk3y.betterParse:better-parse-jvm:0.4.0-alpha-3")
+    compile("com.atlassian.commonmark:commonmark:0.12.1")
 
     testCompile("junit", "junit", "4.12")
 }
