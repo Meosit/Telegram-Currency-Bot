@@ -126,7 +126,7 @@ class InputQueryServiceTest {
         assertThat(res.involvedCurrencies, `is`(listOf("USD")))
         assertThat(res.expression, `is`("10 USD + 5 USD"))
         assertThat(res.expressionResult, `is`(exchanger.exchangeToApiBase(15.toBigDecimal(), "USD")))
-        assertThat(res.targets, `is`(listOf("USD", "BYN", "EUR", "RUB", "CZK")))
+        assertThat(res.targets, `is`(listOf("BYN", "USD", "EUR", "RUB", "CZK")))
     }
 
     @Test
@@ -139,7 +139,7 @@ class InputQueryServiceTest {
                 exchanger.exchangeToApiBase(9.toBigDecimal(), "USD") +
                 exchanger.exchangeToApiBase(2.toBigDecimal(), "EUR")
         ))
-        assertThat(res.targets, `is`(listOf("USD", "EUR", "BYN", "RUB", "CZK")))
+        assertThat(res.targets, `is`(listOf("BYN", "USD", "EUR", "RUB", "CZK")))
     }
 
     @Test
@@ -152,7 +152,7 @@ class InputQueryServiceTest {
                 exchanger.exchangeToApiBase(18.toBigDecimal(), "USD") +
                 exchanger.exchangeToApiBase(1.toBigDecimal(), "EUR")
         ))
-        assertThat(res.targets, `is`(listOf("USD", "EUR", "BYN", "RUB", "CZK")))
+        assertThat(res.targets, `is`(listOf("BYN", "USD", "EUR", "RUB", "CZK")))
     }
 
     @Test
@@ -241,7 +241,7 @@ class InputQueryServiceTest {
         assertThat(res.involvedCurrencies, `is`(listOf("USD")))
         assertThat(res.expression, `is`("18"))
         assertThat(res.expressionResult, `is`(exchanger.exchangeToApiBase(18.toBigDecimal(), "USD")))
-        assertThat(res.targets, `is`(listOf("USD", "BYN", "EUR", "RUB")))
+        assertThat(res.targets, `is`(listOf("BYN", "USD", "EUR", "RUB")))
     }
 
     @Test
@@ -278,7 +278,7 @@ class InputQueryServiceTest {
         val res = service.parse(input).get()
         assertThat(res.involvedCurrencies, `is`(listOf("UAH")))
         assertThat(res.expressionResult, `is`(exchanger.exchangeToApiBase(18.toBigDecimal(), "UAH")))
-        assertThat(res.targets, `is`(listOf("UAH", "BYN", "USD", "EUR")))
+        assertThat(res.targets, `is`(listOf("BYN", "USD", "EUR", "UAH")))
     }
 
 

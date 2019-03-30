@@ -13,7 +13,8 @@ import java.text.DecimalFormat
 
 class OutputMessageService(private val httpClient: HttpClient, private val config: AppConfig) {
 
-    private val decimalFormat = DecimalFormat(config.currencies.outputSumPattern)
+    private val sumFormat = DecimalFormat(config.currencies.outputSumPattern)
+    private val justCalculateFormat = DecimalFormat("#0.####")
     private val gson = Gson()
 
     private fun generateOutputMarkdown(results: ExchangeResults): String {
@@ -22,7 +23,7 @@ class OutputMessageService(private val httpClient: HttpClient, private val confi
                 "\uD83D\uDCB9 _${config.strings.telegram.inlineTitles.dashboard.format(results.input.involvedCurrencies.first())}_\n"
             else -> "#️⃣ _${results.input.expression}=_\n"
         }
-        return exprPrefix + results.rates.joinToString(separator = "\n") { "${it.currency.symbol} `${decimalFormat.format(it.sum)}`" }
+        return exprPrefix + results.rates.joinToString(separator = "\n") { "${it.currency.symbol} `${sumFormat.format(it.sum)}`" }
     }
 
     suspend fun sendMarkdownToChat(chatId: String, text: String, replyMessageId: String? = null) {
@@ -35,14 +36,13 @@ class OutputMessageService(private val httpClient: HttpClient, private val confi
         }
     }
 
-    suspend fun sendResultToChat(chatId: String, results: ExchangeResults, replyMessageId: String? = null) {
+    suspend fun sendResultToChat(chatId: String, results: ExchangeResults) {
         val markdown = generateOutputMarkdown(results)
         httpClient.post<String> {
             url("${config.telegram.apiUrl}/sendMessage")
             parameter("text", markdown)
             parameter("parse_mode", "Markdown")
             parameter("chat_id", chatId)
-            replyMessageId?.let { parameter("reply_to_message_id", it) }
         }
     }
 
@@ -56,7 +56,7 @@ class OutputMessageService(private val httpClient: HttpClient, private val confi
             val title = when {
                 results.input.isOneUnit() -> config.strings.telegram.inlineTitles.dashboard.format(results.input.involvedCurrencies.firstOrNull() ?: "???")
                 else -> config.strings.telegram.inlineTitles.exchange.format(
-                        if(results.input.type != ExpressionType.MULTI_CURRENCY_EXPR) decimalFormat.format(results.input.expressionResult) else "\uD83C\uDF10",
+                        if(results.input.type != ExpressionType.MULTI_CURRENCY_EXPR) sumFormat.format(results.input.expressionResult) else "\uD83C\uDF10",
                         results.input.involvedCurrencies.joinToString(","),
                         (results.input.targets - results.input.involvedCurrencies).joinToString(",")
                 )
@@ -77,9 +77,9 @@ class OutputMessageService(private val httpClient: HttpClient, private val confi
             val results = resultsList.single()
             gson.toJson(inlineResults + InlineQueryResultArticle(
                     title = config.strings.telegram.inlineTitles.calculate,
-                    description = "${results.input.expression} = ${decimalFormat.format(results.input.expressionResult)}",
+                    description = "${results.input.expression} = ${sumFormat.format(results.input.expressionResult)}",
                     inputMessageContent = InputTextMessageContent(
-                            "`${results.input.expression} = ${decimalFormat.format(results.input.expressionResult)}`",
+                            "`${results.input.expression} = ${justCalculateFormat.format(results.input.expressionResult)}`",
                             "Markdown"
                     ),
                     thumbUrl = "${config.serverUrl}/thumbs/calculate.png"

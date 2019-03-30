@@ -75,7 +75,7 @@ private suspend fun Message.handle(config: AppConfig, service: CombinedService) 
             LOG.info("[Message] User: $user\nInput: '$text'\nParsed: $query")
             query.fold(success = {
                 val exchangeResults = service.exchange.exchangeInputQuery(it)
-                service.output.sendResultToChat(chat.id.toString(), exchangeResults, replyMessageId = messageId.toString())
+                service.output.sendResultToChat(chat.id.toString(), exchangeResults)
             }, failure = {
                 service.output.sendMarkdownToChat(chat.id.toString(), it.toMarkdown(), replyMessageId = messageId.toString())
             })

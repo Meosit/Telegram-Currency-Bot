@@ -84,6 +84,9 @@ class InputQueryService(
         )
     }
 
+    private fun Set<String>.toPredefinedOrderList() =
+            config.currencies.supported.asSequence().map { it.code }.filter { this.contains(it) }.toList()
+
     fun parse(query: String): Result<InputQuery, InputError> {
         val rawInput = query.trim().replace("\n", " ")
         val normalizedQueryResult = normalizeQuery(rawInput)
@@ -106,7 +109,7 @@ class InputQueryService(
                         expressionResult = expressionResult,
                         baseCurrency = baseCurrency,
                         involvedCurrencies = involvedCurrencies,
-                        targets = targets.toList()
+                        targets = targets.toPredefinedOrderList()
                 ))
             }
             is ErrorResult -> Result.failure(parseResult.toInputError(rawInput, errorPositionCorrection))

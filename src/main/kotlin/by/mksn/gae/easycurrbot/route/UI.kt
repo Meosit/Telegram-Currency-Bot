@@ -92,20 +92,18 @@ fun Routing.rootPage(config: AppConfig) {
                         +"Перед вами demo телеграм бота "
                         b { a(href = "https://t.me/easycurrbot", target = "_blank") { +"@easycurrbot" } }
                     }
-                    form {
-                        div(classes = "row") {
-                            div(classes = "ten columns") {
-                                input(classes = "u-full-width", type = InputType.text) {
-                                    id = "query"
-                                    value = "10злотых + 8 BYN"
-                                    placeholder = "Введите запрос..."
-                                }
+                    div(classes = "row") {
+                        div(classes = "ten columns") {
+                            input(classes = "u-full-width", type = InputType.text) {
+                                id = "query"
+                                value = "10злотых + 8 BYN"
+                                placeholder = "Введите запрос..."
                             }
-                            div(classes = "two columns") {
-                                input(classes = "u-full-width button-secondary", type = InputType.button) {
-                                    id = "sendQuery"
-                                    value = "GO"
-                                }
+                        }
+                        div(classes = "two columns") {
+                            input(classes = "u-full-width button-primary", type = InputType.button) {
+                                id = "sendQuery"
+                                value = "GO"
                             }
                         }
                     }
