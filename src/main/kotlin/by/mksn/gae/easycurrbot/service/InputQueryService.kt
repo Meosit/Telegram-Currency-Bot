@@ -19,7 +19,7 @@ class InputQueryService(
             .flatMap { c -> c.aliases.map { it.toLowerCase() to c.code } }
             .toMap()
 
-    private val currencyAliasRegex = "[a-zA-Zа-яА-Я€$]+".toRegex()
+    private val currencyAliasRegex = "[a-zA-Zа-яА-Я€$£\u20BD₴¥Ұ]+".toRegex()
     private val grammar = InputExpressionGrammar(config, exchangeRateService)
 
 

@@ -42,7 +42,7 @@ $( document ).ready(function() {
         }).done(function(data, statusText, xhr) {
           var res = createHeader(data.input);
           data.rates.forEach(function(e) {
-            res = res + currencyToEmojiFlagHtml(e.currency.code) + " " + humanize(e.sum, 3) + "\n";
+            res = res + currencyToEmojiFlagHtml(e.currency.code) + " <b>" + e.currency.code + "</b> " + humanize(e.sum, 3) + "\n";
           });
           $("#result").html(res);
         }).fail(function(data, statusText, xhr){

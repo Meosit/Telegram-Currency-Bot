@@ -23,7 +23,7 @@ class OutputMessageService(private val httpClient: HttpClient, private val confi
                 "\uD83D\uDCB9 _${config.strings.telegram.inlineTitles.dashboard.format(results.input.involvedCurrencies.first())}_\n"
             else -> "#️⃣ _${results.input.expression}=_\n"
         }
-        return exprPrefix + results.rates.joinToString(separator = "\n") { "${it.currency.symbol} `${sumFormat.format(it.sum)}`" }
+        return exprPrefix + results.rates.joinToString(separator = "\n") { "${it.currency.symbol} *${it.currency.code}*` ${sumFormat.format(it.sum)}`" }
     }
 
     suspend fun sendMarkdownToChat(chatId: String, text: String, replyMessageId: String? = null) {
@@ -51,6 +51,7 @@ class OutputMessageService(private val httpClient: HttpClient, private val confi
             val markdown = generateOutputMarkdown(results)
             val queryDescription = markdown.replace("`", "")
                     .replace("_", "")
+                    .replace("*", "")
                     .replace("\n", " ")
 
             val title = when {
