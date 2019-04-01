@@ -5,8 +5,11 @@ function currencyToEmojiFlagHtml(currName) {
 function createHeader(input) {
     switch (input.type) {
         case "MULTI_CURRENCY_EXPR":
-        case "SINGLE_CURRENCY_EXPR":
             return "<i class=\"em em-hash\"></i> <i>" + input.expression + " =</i>\n";
+            break;
+        case "SINGLE_CURRENCY_EXPR":
+            return "<i class=\"em em-hash\"></i> <i>" + input.expression + " (" + input.involved_currencies[0] + ") =</i>\n";
+            break;
         case "SINGLE_VALUE":
             if (input.expression === "1") {
                 return "<i class=\"em em-chart\"></i> <i>Курс " + input.involved_currencies[0] + "</i>\n";
@@ -42,7 +45,7 @@ $( document ).ready(function() {
         }).done(function(data, statusText, xhr) {
           var res = createHeader(data.input);
           data.rates.forEach(function(e) {
-            res = res + currencyToEmojiFlagHtml(e.currency.code) + " <b>" + e.currency.code + "</b> " + humanize(e.sum, 3) + "\n";
+            res = res + currencyToEmojiFlagHtml(e.currency.code) + e.currency.code + " " + humanize(e.sum, 3) + "\n";
           });
           $("#result").html(res);
         }).fail(function(data, statusText, xhr){

@@ -21,9 +21,12 @@ class OutputMessageService(private val httpClient: HttpClient, private val confi
         val exprPrefix = when (results.input.type) {
             ExpressionType.SINGLE_VALUE -> if (!results.input.isOneUnit()) "" else
                 "\uD83D\uDCB9 _${config.strings.telegram.inlineTitles.dashboard.format(results.input.involvedCurrencies.first())}_\n"
-            else -> "#️⃣ _${results.input.expression}=_\n"
+            ExpressionType.SINGLE_CURRENCY_EXPR ->
+                "#️⃣ _${results.input.expression} (${results.input.involvedCurrencies.first()}) =_\n"
+            ExpressionType.MULTI_CURRENCY_EXPR ->
+                "#️⃣ _${results.input.expression} =_\n"
         }
-        return exprPrefix + results.rates.joinToString(separator = "\n") { "${it.currency.symbol} *${it.currency.code}*` ${sumFormat.format(it.sum)}`" }
+        return exprPrefix + results.rates.joinToString(separator = "\n") { "`${it.currency.symbol}${it.currency.code}`  `${sumFormat.format(it.sum)}`" }
     }
 
     suspend fun sendMarkdownToChat(chatId: String, text: String, replyMessageId: String? = null) {
@@ -51,11 +54,10 @@ class OutputMessageService(private val httpClient: HttpClient, private val confi
             val markdown = generateOutputMarkdown(results)
             val queryDescription = markdown.replace("`", "")
                     .replace("_", "")
-                    .replace("*", "")
                     .replace("\n", " ")
 
             val title = when {
-                results.input.isOneUnit() -> config.strings.telegram.inlineTitles.dashboard.format(results.input.involvedCurrencies.firstOrNull() ?: "???")
+                results.input.isOneUnit() -> config.strings.telegram.inlineTitles.dashboard.format(results.input.involvedCurrencies.first())
                 else -> config.strings.telegram.inlineTitles.exchange.format(
                         if(results.input.type != ExpressionType.MULTI_CURRENCY_EXPR) sumFormat.format(results.input.expressionResult) else "\uD83C\uDF10",
                         results.input.involvedCurrencies.joinToString(","),
