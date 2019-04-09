@@ -24,7 +24,8 @@ data class AppConfig(
     data class Telegram(
             val token: String,
             val apiUrl: String,
-            val outputWidthChars: Int
+            val outputWidthChars: Int,
+            val creatorUsername: String
     )
 
     data class Routes(

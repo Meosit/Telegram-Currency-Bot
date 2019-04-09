@@ -57,12 +57,29 @@ class OutputMessageService(private val httpClient: HttpClient, private val confi
                     .replace("\n", " ")
 
             val title = when {
-                results.input.isOneUnit() -> config.strings.telegram.inlineTitles.dashboard.format(results.input.involvedCurrencies.first())
-                else -> config.strings.telegram.inlineTitles.exchange.format(
-                        if(results.input.type != ExpressionType.MULTI_CURRENCY_EXPR) sumFormat.format(results.input.expressionResult) else "\uD83C\uDF10",
-                        results.input.involvedCurrencies.joinToString(","),
-                        (results.input.targets - results.input.involvedCurrencies).joinToString(",")
-                )
+                results.input.isOneUnit() ->
+                    config.strings.telegram.inlineTitles.dashboard.format(results.input.involvedCurrencies.first())
+                // grammar bug that single value treated as multi currency expression,
+                // so expression result already converted to api base rather present in input currency
+                results.input.type == ExpressionType.SINGLE_VALUE &&
+                        results.input.involvedCurrencies.first() != config.currencies.apiBase ->
+                    config.strings.telegram.inlineTitles.exchange.format(
+                            results.input.expression,
+                            results.input.involvedCurrencies.joinToString(","),
+                            (results.input.targets - results.input.involvedCurrencies).joinToString(",")
+                    )
+                results.input.type == ExpressionType.MULTI_CURRENCY_EXPR ->
+                    config.strings.telegram.inlineTitles.exchange.format(
+                            "\uD83C\uDF10",
+                            results.input.involvedCurrencies.joinToString(","),
+                            (results.input.targets - results.input.involvedCurrencies).joinToString(",")
+                    )
+                else ->
+                    config.strings.telegram.inlineTitles.exchange.format(
+                            sumFormat.format(results.input.expressionResult),
+                            results.input.involvedCurrencies.joinToString(","),
+                            (results.input.targets - results.input.involvedCurrencies).joinToString(",")
+                    )
             }
             val thumbUrl = if (results.input.isOneUnit())
                 "${config.serverUrl}/thumbs/dashboard.png" else "${config.serverUrl}/thumbs/exchange.png"

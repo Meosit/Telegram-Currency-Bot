@@ -28,7 +28,7 @@ fun Routing.registerBotGet(config: AppConfig, httpClient: HttpClient) {
             body {
                 if (success) {
                     h3 { +"Success" }
-                    p { +"Webhook was successfully set to the following update types: $updateTypes." }
+                    p { +"Webhook has successfully set to the following update types: $updateTypes." }
                 } else {
                     h3 { +"Failed" }
                     p { +"Code: $errCode" }
