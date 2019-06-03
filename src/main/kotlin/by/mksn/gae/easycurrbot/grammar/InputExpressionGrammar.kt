@@ -69,12 +69,14 @@ class InputExpressionGrammar(
     private val subSumChain by leftAssociative(divMulChain, PLUS or MINUS use { type }) { a, op, b -> if (op == PLUS) a + b else a - b }
 
     // math number or expression in pars with currency modifier
-    private val currenciedTerm: Parser<BigDecimal> by (term and currency map { (num, curr) -> exchangeRateService.exchangeToApiBase(num, curr) }) or
+    private val currenciedTerm: Parser<BigDecimal> by (divMulChain and currency map { (num, curr) -> exchangeRateService.exchangeToApiBase(num, curr) }) or
             (skip(MINUS) and parser(this::currenciedTerm) map { -it }) or
             (skip(LEFT_PAR) and parser(this::currenciedSubSumChain) and skip(RIGHT_PAR))
 
     // division and multiplication can be performed only with simple numbers
-    private val currenciedDivMulChain by (currenciedTerm and (DIVIDE or MULTIPLY) and term map { (a, op, b) -> if (op.type == DIVIDE) a / b else a * b }) or currenciedTerm
+    private val currenciedDivMulChain by (currenciedTerm and oneOrMore((DIVIDE or MULTIPLY) and term) map {
+        (initial, operands) -> operands.fold(initial) { a, (op, b) -> if (op.type == DIVIDE) a / b else a * b }
+    }) or currenciedTerm
 
     // addition and subtraction can be performed only by currencied numbers/expressions
     private val currenciedSubSumChain by leftAssociative(currenciedDivMulChain, PLUS or MINUS use { type }) { a, op, b -> if (op == PLUS) a + b else a - b }
@@ -135,8 +137,7 @@ class InputExpressionGrammar(
 
             return when (fullInput) {
                 is Parsed -> {
-                    val expressionInput = expressionInputParser.tryParse(tokens)
-                    when (expressionInput) {
+                    when (val expressionInput = expressionInputParser.tryParse(tokens)) {
                         is Parsed -> {
                             with(fullInput.value) {
                                 var exprTokens = tokens.toList()

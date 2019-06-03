@@ -94,8 +94,7 @@ class InputQueryService(
             is Result.Success -> normalizedQueryResult.value
             is Result.Failure -> return Result.failure(normalizedQueryResult.error)
         }
-        val parseResult = grammar.tryParseToEnd(normalizedQuery)
-        return when (parseResult) {
+        return when (val parseResult = grammar.tryParseToEnd(normalizedQuery)) {
             is Parsed -> with(parseResult.value) {
                 val targets = involvedCurrencies.toMutableSet()
                 targets.addAll(config.currencies.default)

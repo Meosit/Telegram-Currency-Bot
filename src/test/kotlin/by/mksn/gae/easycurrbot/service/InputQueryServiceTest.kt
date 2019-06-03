@@ -3,15 +3,14 @@ package by.mksn.gae.easycurrbot.service
 import by.mksn.gae.easycurrbot.AppConfig
 import by.mksn.gae.easycurrbot.entity.InputError
 import by.mksn.gae.easycurrbot.entity.Result
-import by.mksn.gae.easycurrbot.grammar.InputExpressionGrammar
 import com.google.gson.FieldNamingPolicy
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.apache.Apache
 import io.ktor.client.features.json.GsonSerializer
 import io.ktor.client.features.json.JsonFeature
 import org.hamcrest.core.Is.`is`
-import org.junit.Assert.*
-import org.junit.Before
+import org.junit.Assert.assertThat
+import org.junit.Assert.assertTrue
 import org.junit.BeforeClass
 import org.junit.Test
 
@@ -156,6 +155,43 @@ class InputQueryServiceTest {
     }
 
     @Test
+    fun `parse multi currency expression query 4 (chained simple operands)`() {
+        val input = "1000$ * 0.91 / 10"
+        val res = service.parse(input).get()
+        assertThat(res.involvedCurrencies, `is`(listOf("USD")))
+        assertThat(res.expressionResult, `is`(exchanger.exchangeToApiBase(91.toBigDecimal(), "USD")))
+        assertThat(res.targets, `is`(listOf("BYN", "USD", "EUR", "RUB")))
+    }
+
+    @Test
+    fun `parse multi currency expression query 5 (chained simple operands)`() {
+        val input = "1000$ * 0.91 / 10 * 10"
+        val res = service.parse(input).get()
+        assertThat(res.involvedCurrencies, `is`(listOf("USD")))
+        assertThat(res.expressionResult, `is`(exchanger.exchangeToApiBase(910.toBigDecimal(), "USD")))
+        assertThat(res.targets, `is`(listOf("BYN", "USD", "EUR", "RUB")))
+    }
+
+    @Test
+    fun `parse multi currency expression query 6 (chained simple operands)`() {
+        val input = "10 * 10 * 10 euro + 10 USD"
+        val res = service.parse(input).get()
+        assertThat(res.involvedCurrencies, `is`(listOf("EUR", "USD")))
+        assertThat(res.expressionResult, `is`(exchanger.exchangeToApiBase(1000.toBigDecimal(), "EUR") +
+                exchanger.exchangeToApiBase(10.toBigDecimal(), "USD")))
+        assertThat(res.targets, `is`(listOf("BYN", "USD", "EUR", "RUB")))
+    }
+
+    @Test
+    fun `parse multi currency expression query 7 (chained simple operands)`() {
+        val input = "(1000$ * 0.91) / 10 * 10"
+        val res = service.parse(input).get()
+        assertThat(res.involvedCurrencies, `is`(listOf("USD")))
+        assertThat(res.expressionResult, `is`(exchanger.exchangeToApiBase(910.toBigDecimal(), "USD")))
+        assertThat(res.targets, `is`(listOf("BYN", "USD", "EUR", "RUB")))
+    }
+
+    @Test
     fun `parse invalid value query`() {
         val input = "asd?/"
         val res = service.parse(input)
@@ -172,7 +208,6 @@ class InputQueryServiceTest {
         println(res.component2()!!.toMarkdown())
     }
 
-
     @Test
     fun `parse invalid expression value query 2`() {
         val input = "%23"
@@ -180,6 +215,7 @@ class InputQueryServiceTest {
         assertTrue(res is Result.Failure<InputError>)
         println(res.component2()!!.toMarkdown())
     }
+
 
     @Test
     fun `parse invalid expression value query 3`() {
@@ -216,7 +252,6 @@ class InputQueryServiceTest {
         println(res.component2()!!.toMarkdown())
     }
 
-
     @Test
     fun `parse invalid multi currency expression query 3`() {
         val input = "123 && EUR / 0 + 23 USD"
@@ -225,6 +260,7 @@ class InputQueryServiceTest {
         println(res.component2()!!.toMarkdown())
     }
 
+
     @Test
     fun `parse invalid multi currency expression query 4`() {
         val input = "123 EUR EUR"
@@ -232,7 +268,6 @@ class InputQueryServiceTest {
         assertTrue(res is Result.Failure<InputError>)
         println(res.component2()!!.toMarkdown())
     }
-
 
     @Test
     fun `parse query with other base`() {
@@ -262,6 +297,7 @@ class InputQueryServiceTest {
         assertThat(res.targets, `is`(listOf("USD", "RUB")))
     }
 
+
     @Test
     fun `parse query with additions and removals`() {
         val input = "18 +br -br +евро +BYN -USD +злотые"
@@ -270,6 +306,7 @@ class InputQueryServiceTest {
         assertThat(res.expressionResult, `is`(exchanger.exchangeToApiBase(18.toBigDecimal(), "BYN")))
         assertThat(res.targets, `is`(listOf("EUR", "RUB", "PLN")))
     }
+
 
 
     @Test
