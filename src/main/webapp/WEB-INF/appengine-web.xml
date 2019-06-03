@@ -6,6 +6,8 @@
     <static-files>
         <include path="/thumbs/**" >
         </include>
+        <include path="/robots.txt" >
+        </include>
         <include path="/scripts/**" >
         </include>
     </static-files>

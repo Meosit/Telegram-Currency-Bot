@@ -1,0 +1,4 @@
+User-agent: *
+Disallow: /bot/
+Disallow: /thumbs/
+Disallow: /exchange
