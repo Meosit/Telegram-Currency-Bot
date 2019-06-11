@@ -17,3 +17,14 @@ Bot allows to convert single/multi currency expressions. Available 11 currencies
 Implementation details which can be useful:
 * Custom input grammar using [better-parse](https://github.com/h0tk3y/better-parse).
 * Custom [Ktor client engine](https://ktor.io/clients/http-client/engines.html) in order to make requiests via [URLFetchService](https://cloud.google.com/appengine/docs/standard/java/javadoc/com/google/appengine/api/urlfetch/URLFetchService)
+* Code require `creds.conf` file in the `resources` directory with the following data:
+  ```
+  creds {
+    serverUrl = "https://<gcp-project-id>.appspot.com"
+    telegram {
+      token = "<telegram-bot-token>"
+      apiUrl = "https://api.telegram.org/bot"${creds.telegram.token}
+      creatorUsername = "<telegram-username-of-creator>"
+    }
+  }
+  ```
