@@ -46,6 +46,26 @@ class InputQueryServiceTest {
         assertThat(res.targets, `is`(listOf("BYN", "USD", "EUR", "RUB")))
     }
 
+    @Test
+    fun `parse currency pattern query`() {
+        val input = "12012.12 ,h"
+        val res = service.parse(input).get()
+        assertThat(res.involvedCurrencies, `is`(listOf("BYN")))
+        assertThat(res.expression, `is`("12012.12"))
+        assertThat(res.expressionResult, `is`("12012.12000000".toBigDecimal()))
+        assertThat(res.targets, `is`(listOf("BYN", "USD", "EUR", "RUB")))
+    }
+
+
+    @Test
+    fun `parse currency pattern query 2`() {
+        val input = "12 he,kz"
+        val res = service.parse(input).get()
+        assertThat(res.involvedCurrencies, `is`(listOf("RUB")))
+        assertThat(res.expression, `is`("12"))
+        assertThat(res.expressionResult, `is`(exchanger.exchangeToApiBase(12.toBigDecimal(), "RUB")))
+        assertThat(res.targets, `is`(listOf("BYN", "USD", "EUR", "RUB")))
+    }
 
     @Test
     fun `parse expression query`() {

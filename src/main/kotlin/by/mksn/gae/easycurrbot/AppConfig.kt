@@ -41,8 +41,8 @@ data class AppConfig(
             val errors: Errors
     ) {
         data class Telegram(
-                val start: String,
                 val help: String,
+                val patterns: String,
                 val inlineTitles: InlineTitles
         ) {
             data class InlineTitles(

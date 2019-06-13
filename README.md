@@ -5,7 +5,7 @@ Telegram bot implementation using Google App Engine + Kotlin + Ktor.
 See [@easycurrbot](https://t.me/easycurrbot)
 
 
-Bot allows to convert single/multi currency expressions. Available 11 currencies and the following features:
+Bot allows to convert single/multi currency expressions. Available 19 currencies and the following features:
 * Currencies can be set using nature russian names and some symbols.
 * Currencies can be added or removed from the output using keys after expression.
 * Basic `+`, `-`, `*`, `/` operators supported as well as groupings using brackets.

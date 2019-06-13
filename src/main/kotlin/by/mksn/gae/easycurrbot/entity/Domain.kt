@@ -1,6 +1,5 @@
 package by.mksn.gae.easycurrbot.entity
 
-import java.lang.IllegalStateException
 import java.math.BigDecimal
 import java.math.RoundingMode
 
@@ -96,7 +95,7 @@ sealed class Result<out V, out E> {
     class Failure<out E : Any>(val error: E) : Result<Nothing, E>() {
         override fun component2(): E? = error
 
-        override fun get() = throw IllegalStateException("Cannot retrieve success result from Failure")
+        override fun get() = throw IllegalStateException("Cannot retrieve success result from Failure: $error")
 
         override fun toString() = "[Failure: \"$error\"]"
 

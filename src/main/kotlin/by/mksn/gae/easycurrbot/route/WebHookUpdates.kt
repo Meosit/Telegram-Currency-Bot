@@ -73,10 +73,10 @@ private suspend fun InlineQuery.handle(config: AppConfig, service: CombinedServi
 
 private suspend fun Message.handle(config: AppConfig, service: CombinedService) {
     when (text) {
-        "/start" -> service.output
-                .sendMarkdownToChat(chat.id.toString(), config.strings.telegram.start)
-        "/help" -> service.output
+        "/start", "/help" -> service.output
                 .sendMarkdownToChat(chat.id.toString(), config.strings.telegram.help)
+        "/patterns" -> service.output
+                .sendMarkdownToChat(chat.id.toString(), config.strings.telegram.patterns)
         "", null -> Unit
         else -> {
             val user = chat.userReadableName(config)

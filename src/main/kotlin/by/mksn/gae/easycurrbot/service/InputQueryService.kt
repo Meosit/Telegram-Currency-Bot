@@ -19,12 +19,12 @@ class InputQueryService(
             .flatMap { c -> c.aliases.map { it.toLowerCase() to c.code } }
             .toMap()
 
-    private val currencyAliasRegex = "[a-zA-Zа-яА-Я€$£\u20BD₴¥Ұ]+".toRegex()
+    private val currencyAliasRegex = "[a-zA-Zа-яА-Я\\[\\],';.`]{2,}|[a-zA-Zа-яА-Я€$£\u20BD₴¥Ұ]".toRegex()
     private val grammar = InputExpressionGrammar(config, exchangeRateService)
 
 
     private fun normalizeQuery(query: String): Result<Pair<String, Int>, InputError> {
-        var result = query.replace(',', '.')
+        var result = query
         var errorPositionCorrection = 0
         var lastPositionCorrection = 0
         for(match in currencyAliasRegex.findAll(result).distinct()) {
@@ -41,6 +41,7 @@ class InputQueryService(
             lastPositionCorrection = match.value.length - currency.length
             errorPositionCorrection += lastPositionCorrection
         }
+        result = result.replace(",", ".")
         return Result.success(result to (errorPositionCorrection - lastPositionCorrection))
     }
 
