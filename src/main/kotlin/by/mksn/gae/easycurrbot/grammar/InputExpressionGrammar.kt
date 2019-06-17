@@ -10,10 +10,7 @@ import com.github.h0tk3y.betterParse.grammar.Grammar
 import com.github.h0tk3y.betterParse.grammar.parser
 import com.github.h0tk3y.betterParse.grammar.token
 import com.github.h0tk3y.betterParse.lexer.TokenMatch
-import com.github.h0tk3y.betterParse.parser.ErrorResult
-import com.github.h0tk3y.betterParse.parser.ParseResult
-import com.github.h0tk3y.betterParse.parser.Parsed
-import com.github.h0tk3y.betterParse.parser.Parser
+import com.github.h0tk3y.betterParse.parser.*
 import java.math.BigDecimal
 import java.math.RoundingMode
 
@@ -41,6 +38,7 @@ class InputExpressionGrammar(
 ) : Grammar<RawInputQuery>() {
 
     private val NUMBER by token(config.strings.tokenNames.number, "\\d+([.,]\\d+)?")
+    private val KILO by token(config.strings.tokenNames.kilo, config.strings.kiloSpecialChar)
     private val LEFT_PAR by token(config.strings.tokenNames.leftPar, "\\(")
     private val RIGHT_PAR by token(config.strings.tokenNames.rightPar, "\\)")
     private val MULTIPLY by token(config.strings.tokenNames.multiply, "\\*")
@@ -59,7 +57,11 @@ class InputExpressionGrammar(
     private val keyChain by zeroOrMore(currencyKey)
 
     // simple math expression
-    private val number by NUMBER use { text.toBigDecimal().setScale(config.currencies.internalPrecision, RoundingMode.HALF_UP) }
+    private val number by NUMBER and zeroOrMore(KILO) map { (num, kilos) ->
+        kilos.foldRight(num.text.toBigDecimal().setScale(config.currencies.internalPrecision, RoundingMode.HALF_UP)) { _, acc ->
+            acc * 1000.toBigDecimal().setScale(config.currencies.internalPrecision, RoundingMode.HALF_UP)
+        }
+    }
 
     private val term: Parser<BigDecimal> by number or
             (skip(MINUS) and parser(this::term) map { -it }) or
@@ -74,8 +76,8 @@ class InputExpressionGrammar(
             (skip(LEFT_PAR) and parser(this::currenciedSubSumChain) and skip(RIGHT_PAR))
 
     // division and multiplication can be performed only with simple numbers
-    private val currenciedDivMulChain by (currenciedTerm and oneOrMore((DIVIDE or MULTIPLY) and term) map {
-        (initial, operands) -> operands.fold(initial) { a, (op, b) -> if (op.type == DIVIDE) a / b else a * b }
+    private val currenciedDivMulChain by (currenciedTerm and oneOrMore((DIVIDE or MULTIPLY) and term) map { (initial, operands) ->
+        operands.fold(initial) { a, (op, b) -> if (op.type == DIVIDE) a / b else a * b }
     }) or currenciedTerm
 
     // addition and subtraction can be performed only by currencied numbers/expressions
@@ -102,6 +104,7 @@ class InputExpressionGrammar(
             .filter { it.type != WHITESPACE }
             .map {
                 when (it.type) {
+                    KILO -> "k"
                     MINUS -> " - "
                     PLUS -> " + "
                     CURRENCY -> " ${it.text}"
@@ -117,6 +120,7 @@ class InputExpressionGrammar(
         asSequence()
                 .filterNot { it.type == NUMBER }
                 .filterNot { it.type == WHITESPACE }
+                .filterNot { it.type == KILO }
                 .any() -> ExpressionType.SINGLE_CURRENCY_EXPR
         else -> ExpressionType.SINGLE_VALUE
     }
@@ -140,7 +144,7 @@ class InputExpressionGrammar(
                     when (val expressionInput = expressionInputParser.tryParse(tokens)) {
                         is Parsed -> {
                             with(fullInput.value) {
-                                var exprTokens = tokens.toList()
+                                val exprTokens = tokens.toList()
                                         .dropLast(expressionInput.remainder.count() + fullInput.remainder.count())
 
                                 val involvedCurrencies = exprTokens.asSequence()
@@ -150,22 +154,35 @@ class InputExpressionGrammar(
                                         .toList()
                                         .ifEmpty { listOf(baseCurrency) }
 
-                                // single value with specified currency normalising (grammar threat this as multicurrency expression)
-                                if (exprTokens.count { it.type == CURRENCY } == 1 && exprTokens.lastOrNull()?.type == CURRENCY) {
-                                    exprTokens = exprTokens.dropLast(1)
+                                // single value with specified currency fix (e.g. "1 USD" auto exchanged to BYN while parsing) (grammar threat this as multicurrency expression)
+                                if (involvedCurrencies.size == 1 && (involvedCurrencies[0] != baseCurrency || involvedCurrencies[0] == config.currencies.apiBase)) {
+                                    val normalizedExprTokens = exprTokens.asSequence().filter { it.type != CURRENCY } + tokenizer.tokenize(involvedCurrencies[0])
+                                    return when (val fixedExpressionInput = singleCurrencyInputParser.tryParseToEnd(normalizedExprTokens )) {
+                                        is Parsed -> {
+                                            val tokensWithoutCurrency = normalizedExprTokens.toList().dropLast(1)
+                                            Parsed(RawInputQuery(
+                                                    tokensWithoutCurrency.findExpressionType(),
+                                                    tokensWithoutCurrency.toPrettyPrintExpression(),
+                                                    fixedExpressionInput.value.expressionResult.setScale(config.currencies.internalPrecision, RoundingMode.HALF_UP),
+                                                    fixedExpressionInput.value.baseCurrency,
+                                                    involvedCurrencies,
+                                                    keys.filterIsInstance<InputKey.Add>().map { it.currencyCode },
+                                                    keys.filterIsInstance<InputKey.Remove>().map { it.currencyCode }
+                                            ), fullInput.remainder)
+                                        }
+                                        is ErrorResult -> fixedExpressionInput
+                                    }
+                                } else {
+                                    return Parsed(RawInputQuery(
+                                            exprTokens.findExpressionType(),
+                                            exprTokens.toPrettyPrintExpression(),
+                                            expressionResult.setScale(config.currencies.internalPrecision, RoundingMode.HALF_UP),
+                                            baseCurrency,
+                                            involvedCurrencies,
+                                            keys.filterIsInstance<InputKey.Add>().map { it.currencyCode },
+                                            keys.filterIsInstance<InputKey.Remove>().map { it.currencyCode }
+                                    ), fullInput.remainder)
                                 }
-
-
-                                val result = RawInputQuery(
-                                        exprTokens.findExpressionType(),
-                                        exprTokens.toPrettyPrintExpression(),
-                                        expressionResult.setScale(config.currencies.internalPrecision, RoundingMode.HALF_UP),
-                                        baseCurrency,
-                                        involvedCurrencies,
-                                        keys.filterIsInstance<InputKey.Add>().map { it.currencyCode },
-                                        keys.filterIsInstance<InputKey.Remove>().map { it.currencyCode }
-                                )
-                                return Parsed(result, fullInput.remainder)
                             }
                         }
                         is ErrorResult -> expressionInput

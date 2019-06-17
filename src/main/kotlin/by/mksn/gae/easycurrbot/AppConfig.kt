@@ -36,6 +36,7 @@ data class AppConfig(
     )
 
     data class Strings(
+            val kiloSpecialChar: String,
             val telegram: Telegram,
             val tokenNames: TokenNames,
             val errors: Errors
@@ -54,6 +55,7 @@ data class AppConfig(
 
         data class TokenNames(
                 val number: String,
+                val kilo: String,
                 val leftPar: String,
                 val rightPar: String,
                 val multiply: String,

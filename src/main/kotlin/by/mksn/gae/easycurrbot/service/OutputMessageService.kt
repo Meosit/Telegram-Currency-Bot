@@ -59,15 +59,6 @@ class OutputMessageService(private val httpClient: HttpClient, private val confi
             val title = when {
                 results.input.isOneUnit() ->
                     config.strings.telegram.inlineTitles.dashboard.format(results.input.involvedCurrencies.first())
-                // grammar bug that single value treated as multi currency expression,
-                // so expression result already converted to api base rather present in input currency
-                results.input.type == ExpressionType.SINGLE_VALUE &&
-                        results.input.involvedCurrencies.first() != config.currencies.apiBase ->
-                    config.strings.telegram.inlineTitles.exchange.format(
-                            results.input.expression,
-                            results.input.involvedCurrencies.joinToString(","),
-                            (results.input.targets - results.input.involvedCurrencies).joinToString(",")
-                    )
                 results.input.type == ExpressionType.MULTI_CURRENCY_EXPR ->
                     config.strings.telegram.inlineTitles.exchange.format(
                             "\uD83C\uDF10",

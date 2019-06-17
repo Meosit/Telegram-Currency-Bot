@@ -44,8 +44,8 @@ class InputQueryService(
         var match = currencyAliasRegex.find(result, nextSearchStart)
         while (match != null) {
             if (match.value.all { it in kiloSuffixes }) {
-                result = result.replaceRange(match.range, "*1000".repeat(match.value.length))
-                lastPositionCorrection = -4 * match.value.length
+                result = result.replaceRange(match.range, config.strings.kiloSpecialChar.repeat(match.value.length))
+                lastPositionCorrection = 0
             } else {
                 var kiloSuffixCount = 0
                 var normalizedMatch = match.value.toLowerCase()
@@ -62,10 +62,10 @@ class InputQueryService(
                             message = config.strings.errors.invalidMatcherProvided.format(match.value)
                     ))
                 } else {
-                    result = result.replaceRange(match.range, "*1000".repeat(kiloSuffixCount) + currency)
+                    result = result.replaceRange(match.range, config.strings.kiloSpecialChar.repeat(kiloSuffixCount) + currency)
                 }
 
-                lastPositionCorrection = match.value.length - (currency.length + kiloSuffixCount * 5)
+                lastPositionCorrection = match.value.length - (currency.length + kiloSuffixCount)
             }
 
             nextSearchStart = match.range.endInclusive - lastPositionCorrection + 1
