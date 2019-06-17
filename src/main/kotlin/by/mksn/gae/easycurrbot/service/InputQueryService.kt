@@ -20,28 +20,60 @@ class InputQueryService(
             .toMap()
 
     private val currencyAliasRegex = "[a-zA-Zа-яА-Я\\[\\],';.`]{2,}|[a-zA-Zа-яА-Я€$£\u20BD₴¥Ұ]".toRegex()
+    private val kiloSuffixes = charArrayOf('k', 'K', 'к', 'К')
+    private val spaceInNumberRegex = "[0-9,.](\\s+)[0-9.,]".toRegex()
     private val grammar = InputExpressionGrammar(config, exchangeRateService)
 
+    private fun removeWhitespacesFromNumbers(query: String): String {
+        var result = query
+        var nextSearchStart = 0
+        var match = spaceInNumberRegex.find(result, nextSearchStart)
+        while (match != null) {
+            val spaceMatch = match.groups[1]!!
+            result = result.removeRange(spaceMatch.range)
+            nextSearchStart = match.range.endInclusive - spaceMatch.value.length + 1
+            match = spaceInNumberRegex.find(result, nextSearchStart)
+        }
+        return result
+    }
 
     private fun normalizeQuery(query: String): Result<Pair<String, Int>, InputError> {
         var result = query
-        var errorPositionCorrection = 0
         var lastPositionCorrection = 0
-        for(match in currencyAliasRegex.findAll(result).distinct()) {
-            val currency = currencyAliases[match.value.toLowerCase()]
-            if (currency == null) {
-                return Result.failure(InputError(
-                        rawInput = query.trimToLength(config.telegram.outputWidthChars, tail = "…"),
-                        errorPosition = match.range.start + 1,
-                        message = config.strings.errors.invalidMatcherProvided.format(match.value)
-                ))
+        var nextSearchStart = 0
+        var match = currencyAliasRegex.find(result, nextSearchStart)
+        while (match != null) {
+            if (match.value.all { it in kiloSuffixes }) {
+                result = result.replaceRange(match.range, "*1000".repeat(match.value.length))
+                lastPositionCorrection = -4 * match.value.length
             } else {
-                result = result.replace(match.value, currency)
+                var kiloSuffixCount = 0
+                var normalizedMatch = match.value.toLowerCase()
+                var currency = currencyAliases[match.value.toLowerCase()]
+                while (currency == null && normalizedMatch.length > 1 && normalizedMatch[0] in kiloSuffixes) {
+                    normalizedMatch = normalizedMatch.drop(1)
+                    currency = currencyAliases[normalizedMatch]
+                    kiloSuffixCount++
+                }
+                if (currency == null) {
+                    return Result.failure(InputError(
+                            rawInput = query.trimToLength(config.telegram.outputWidthChars, tail = "…"),
+                            errorPosition = match.range.start + 1,
+                            message = config.strings.errors.invalidMatcherProvided.format(match.value)
+                    ))
+                } else {
+                    result = result.replaceRange(match.range, "*1000".repeat(kiloSuffixCount) + currency)
+                }
+
+                lastPositionCorrection = match.value.length - (currency.length + kiloSuffixCount * 5)
             }
-            lastPositionCorrection = match.value.length - currency.length
-            errorPositionCorrection += lastPositionCorrection
+
+            nextSearchStart = match.range.endInclusive - lastPositionCorrection + 1
+            match = currencyAliasRegex.find(result, nextSearchStart)
         }
         result = result.replace(",", ".")
+        result = removeWhitespacesFromNumbers(result)
+        val errorPositionCorrection = query.length - result.length - lastPositionCorrection
         return Result.success(result to (errorPositionCorrection - lastPositionCorrection))
     }
 

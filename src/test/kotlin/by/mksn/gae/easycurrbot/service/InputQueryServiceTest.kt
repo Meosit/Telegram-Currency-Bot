@@ -47,6 +47,77 @@ class InputQueryServiceTest {
     }
 
     @Test
+    fun `parse normal query with metric prefix 1`() {
+        val input = "10k"
+        val res = service.parse(input).get()
+        assertThat(res.involvedCurrencies, `is`(listOf("BYN")))
+        assertThat(res.expression, `is`("10*1000"))
+        assertThat(res.expressionResult, `is`("10000.00000000".toBigDecimal()))
+        assertThat(res.targets, `is`(listOf("BYN", "USD", "EUR", "RUB")))
+    }
+
+    @Test
+    fun `parse normal query with metric prefix 2`() {
+        val input = "1kk"
+        val res = service.parse(input).get()
+        assertThat(res.involvedCurrencies, `is`(listOf("BYN")))
+        assertThat(res.expression, `is`("1*1000*1000"))
+        assertThat(res.expressionResult, `is`("1000000.00000000".toBigDecimal()))
+        assertThat(res.targets, `is`(listOf("BYN", "USD", "EUR", "RUB")))
+    }
+
+    @Test
+    fun `parse normal query with metric prefix 3`() {
+        val input = "1kkBYN"
+        val res = service.parse(input).get()
+        assertThat(res.involvedCurrencies, `is`(listOf("BYN")))
+        assertThat(res.expression, `is`("1*1000*1000"))
+        assertThat(res.expressionResult, `is`("1000000.00000000".toBigDecimal()))
+        assertThat(res.targets, `is`(listOf("BYN", "USD", "EUR", "RUB")))
+    }
+
+    @Test
+    fun `parse normal query with metric prefix 4`() {
+        val input = "1 kk BYN"
+        val res = service.parse(input).get()
+        assertThat(res.involvedCurrencies, `is`(listOf("BYN")))
+        assertThat(res.expression, `is`("1*1000*1000"))
+        assertThat(res.expressionResult, `is`("1000000.00000000".toBigDecimal()))
+        assertThat(res.targets, `is`(listOf("BYN", "USD", "EUR", "RUB")))
+    }
+
+    @Test
+    fun `parse normal query with metric prefix 5`() {
+        val input = "1kkc"
+        val res = service.parse(input).get()
+        assertThat(res.involvedCurrencies, `is`(listOf("CZK")))
+        assertThat(res.expression, `is`("1*1000"))
+        assertThat(res.expressionResult, `is`(exchanger.exchangeToApiBase(1000.toBigDecimal(), "CZK")))
+        assertThat(res.targets, `is`(listOf("BYN", "USD", "EUR", "RUB", "CZK")))
+    }
+
+    @Test
+    fun `parse normal query with whitespace in number`() {
+        val input = "100 000 ,h"
+        val res = service.parse(input).get()
+        assertThat(res.involvedCurrencies, `is`(listOf("BYN")))
+        assertThat(res.expression, `is`("100000"))
+        assertThat(res.expressionResult, `is`("100000.00000000".toBigDecimal()))
+        assertThat(res.targets, `is`(listOf("BYN", "USD", "EUR", "RUB")))
+    }
+
+
+    @Test
+    fun `parse normal query with whitespace in number 2`() {
+        val input = "100k 000 ,h"
+        val res = service.parse(input).get()
+        assertThat(res.involvedCurrencies, `is`(listOf("BYN")))
+        assertThat(res.expression, `is`("100*1000000"))
+        assertThat(res.expressionResult, `is`("100000000.00000000".toBigDecimal()))
+        assertThat(res.targets, `is`(listOf("BYN", "USD", "EUR", "RUB")))
+    }
+
+    @Test
     fun `parse currency pattern query`() {
         val input = "12012.12 ,h"
         val res = service.parse(input).get()
