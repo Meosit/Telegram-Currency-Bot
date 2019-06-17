@@ -1,17 +1,13 @@
 package by.mksn.gae.easycurrbot.service
 
 import by.mksn.gae.easycurrbot.AppConfig
-import by.mksn.gae.easycurrbot.entity.ExchangeResults
-import by.mksn.gae.easycurrbot.entity.ExchangedSum
-import by.mksn.gae.easycurrbot.entity.InputQuery
-import by.mksn.gae.easycurrbot.entity.toOneUnitInputQuery
+import by.mksn.gae.easycurrbot.entity.*
 import com.google.gson.annotations.SerializedName
 import io.ktor.client.HttpClient
 import io.ktor.client.request.get
 import kotlinx.coroutines.runBlocking
 import org.slf4j.LoggerFactory
 import java.math.BigDecimal
-import java.math.RoundingMode
 import java.time.Duration
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -52,9 +48,9 @@ class ExchangeRateService(private val httpClient: HttpClient, private val config
                     .filter { supportedCurrencies.containsKey(it.currencyAbbreviation ) }
                     .associateBy(
                             { it.currencyAbbreviation },
-                            { it.currencyRate!!.setScale(config.currencies.internalPrecision, RoundingMode.HALF_UP) / it.currencyScale.toBigDecimal() }
+                            { it.currencyRate!!.toConfScale(config) / it.currencyScale.toBigDecimal() }
                     )
-            exchangeRates = exchangeRates + (config.currencies.apiBase to 1.toBigDecimal().setScale(config.currencies.internalPrecision, RoundingMode.HALF_UP))
+            exchangeRates = exchangeRates + (config.currencies.apiBase to 1.toConfScaledBigDecimal(config))
             LOG.info("Loaded ${exchangeRates.size} rates:\n"
                     + exchangeRates.map { "${it.key} -> ${it.value}" }.joinToString(separator = "\n"))
             previousUpdateDate = LocalDateTime.parse(rawExchangeRates.first().exchangeDate)
@@ -88,7 +84,7 @@ class ExchangeRateService(private val httpClient: HttpClient, private val config
 
     private fun BigDecimal.toApiBaseValue(sourceBase: String) =
             if (sourceBase == config.currencies.apiBase) {
-                this.setScale(config.currencies.internalPrecision, RoundingMode.HALF_UP)
+                this.toConfScale(config)
             } else {
                 val rate = exchangeRates[sourceBase]
                         ?: throw IllegalArgumentException("Unknown currency provided ($sourceBase)")

@@ -6,11 +6,14 @@ import by.mksn.gae.easycurrbot.entity.happenedAfter
 import by.mksn.gae.easycurrbot.service.CombinedService
 import io.ktor.application.Application
 import io.ktor.application.call
+import io.ktor.client.features.BadResponseStatusException
+import io.ktor.client.response.readText
 import io.ktor.http.HttpStatusCode
 import io.ktor.request.receive
 import io.ktor.response.respond
 import io.ktor.routing.Routing
 import io.ktor.routing.post
+import io.ktor.util.KtorExperimentalAPI
 import io.ktor.util.date.GMTDate
 import me.ivmg.telegram.entities.Chat
 import me.ivmg.telegram.entities.InlineQuery
@@ -21,6 +24,7 @@ import org.slf4j.LoggerFactory
 
 private val LOG = LoggerFactory.getLogger(Application::class.java)!!
 
+@KtorExperimentalAPI
 fun Routing.handleUpdate(config: AppConfig, service: CombinedService, serverStartTime: GMTDate) {
     post(config.routes.updates) {
         val update = call.receive<Update>()
@@ -44,7 +48,12 @@ fun Routing.handleUpdate(config: AppConfig, service: CombinedService, serverStar
                 }
             }
         } catch (e: Exception) {
+            val cause = (e as? BadResponseStatusException)?.response?.readText() ?: e.message
             LOG.info("Unexpected error", e)
+            LOG.info("Update: $update")
+            LOG.info("Cause: $cause")
+            service.output.sendMarkdownToChat(config.telegram.creatorId, "Error received:\n" +
+                    "```\nQuery: ${update.message?.text ?: update.editedMessage?.text ?: update.inlineQuery?.query}\n\nCause: $cause```")
         }
         call.respond(HttpStatusCode.OK)
     }

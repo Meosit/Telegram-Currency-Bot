@@ -1,5 +1,6 @@
 package by.mksn.gae.easycurrbot.entity
 
+import by.mksn.gae.easycurrbot.AppConfig
 import java.math.BigDecimal
 import java.math.RoundingMode
 
@@ -37,13 +38,17 @@ data class InputError(
         val message: String
 ) {
     fun toMarkdown() = """
-        $message (at $errorPosition)
+        ${message.escapeMarkdown()} (at $errorPosition)
         ```  ${"▼".padStart(if (errorPosition > rawInput.length) rawInput.length else errorPosition)}
         > $rawInput
           ${"▲".padStart(if (errorPosition > rawInput.length) rawInput.length else errorPosition)}```
     """.trimIndent()
 
     fun toSingleLine() = "(at $errorPosition) $rawInput"
+
+    private fun String.escapeMarkdown() = replace("*", "\\*")
+            .replace("_", "\\_")
+            .replace("`", "\\`")
 }
 
 fun String.trimToLength(n: Int, tail: String = "") =
@@ -60,6 +65,11 @@ fun Currency.toOneUnitInputQuery(internalPrecision: Int, targets: List<String>) 
         involvedCurrencies = listOf(code),
         targets = targets
 )
+
+fun Int.toConfScaledBigDecimal(config: AppConfig) = toBigDecimal().toConfScale(config)
+fun String.toConfScaledBigDecimal(config: AppConfig) = toBigDecimal().toConfScale(config)
+
+fun BigDecimal.toConfScale(config: AppConfig) = setScale(config.currencies.internalPrecision, RoundingMode.HALF_UP)
 
 data class ExchangedSum(val currency: Currency, val sum: BigDecimal)
 

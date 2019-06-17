@@ -4,6 +4,8 @@ package by.mksn.gae.easycurrbot.grammar
 import by.mksn.gae.easycurrbot.AppConfig
 import by.mksn.gae.easycurrbot.entity.ExpressionType
 import by.mksn.gae.easycurrbot.entity.RawInputQuery
+import by.mksn.gae.easycurrbot.entity.toConfScale
+import by.mksn.gae.easycurrbot.entity.toConfScaledBigDecimal
 import by.mksn.gae.easycurrbot.service.ExchangeRateService
 import com.github.h0tk3y.betterParse.combinators.*
 import com.github.h0tk3y.betterParse.grammar.Grammar
@@ -12,7 +14,7 @@ import com.github.h0tk3y.betterParse.grammar.token
 import com.github.h0tk3y.betterParse.lexer.TokenMatch
 import com.github.h0tk3y.betterParse.parser.*
 import java.math.BigDecimal
-import java.math.RoundingMode
+import java.text.DecimalFormat
 
 
 private sealed class InputKey(val currencyCode: String) {
@@ -58,9 +60,7 @@ class InputExpressionGrammar(
 
     // simple math expression
     private val number by NUMBER and zeroOrMore(KILO) map { (num, kilos) ->
-        kilos.foldRight(num.text.toBigDecimal().setScale(config.currencies.internalPrecision, RoundingMode.HALF_UP)) { _, acc ->
-            acc * 1000.toBigDecimal().setScale(config.currencies.internalPrecision, RoundingMode.HALF_UP)
-        }
+        kilos.foldRight(num.text.toConfScaledBigDecimal(config)) { _, acc -> acc * 1000.toConfScaledBigDecimal(config) }
     }
 
     private val term: Parser<BigDecimal> by number or
@@ -97,8 +97,12 @@ class InputExpressionGrammar(
     private val fullInputParser by multiCurrencyInputParser or singleCurrencyInputParser
 
 
-    private val unaryOperatorAtStart = "^ - (\\d+([.,]\\d+)?( [A-Z]{3})?)".toRegex()
-    private val unaryOperatorAfterBinary = "([-+*/] ?) - (\\d+([.,]\\d+)?( [A-Z]{3})?)".toRegex()
+    private val unaryOperatorAtStartRegex = "^ - (\\d+([.,]\\d+)?( [A-Z]{3})?)".toRegex()
+    private val unaryOperatorAfterBinaryRegex = "([-+*/] ?) - (\\d+([.,]\\d+)?( [A-Z]{3})?)".toRegex()
+    private val zeroNumberRegex = "0+([.,]0+)?".toRegex()
+    private val numberWithKiloRegex = "(\\d+([.,]\\d+)?)(k+)".toRegex()
+
+    private val outputFormat = DecimalFormat(config.currencies.outputSumPattern)
 
     private fun List<TokenMatch>.toPrettyPrintExpression(): String = this.asSequence()
             .filter { it.type != WHITESPACE }
@@ -112,8 +116,13 @@ class InputExpressionGrammar(
                 }
             }.joinToString("")
             .replace("( - ", "(-")
-            .replace(unaryOperatorAtStart) { "(-${it.groups[1]!!.value})" }
-            .replace(unaryOperatorAfterBinary) { "${it.groups[1]!!.value}(-${it.groups[2]!!.value})" }
+            .replace(unaryOperatorAtStartRegex) { "(-${it.groups[1]!!.value})" }
+            .replace(unaryOperatorAfterBinaryRegex) { "${it.groups[1]!!.value}(-${it.groups[2]!!.value})" }
+            .replace(numberWithKiloRegex) {
+                val base = it.groups[1]!!.value.toBigDecimal()
+                val res = it.groups[3]!!.value.foldRight(base.toConfScale(config)) { _, acc -> acc * 1000.toConfScaledBigDecimal(config) }
+                outputFormat.format(res)
+            }
 
     private fun List<TokenMatch>.findExpressionType() = when {
         any { it.type == CURRENCY } -> ExpressionType.MULTI_CURRENCY_EXPR
@@ -124,8 +133,6 @@ class InputExpressionGrammar(
                 .any() -> ExpressionType.SINGLE_CURRENCY_EXPR
         else -> ExpressionType.SINGLE_VALUE
     }
-
-    private val zeroNumberRegex = "0+([.,]0+)?".toRegex()
 
     override val rootParser = object : Parser<RawInputQuery> {
         override fun tryParse(tokens: Sequence<TokenMatch>): ParseResult<RawInputQuery> {
@@ -144,8 +151,7 @@ class InputExpressionGrammar(
                     when (val expressionInput = expressionInputParser.tryParse(tokens)) {
                         is Parsed -> {
                             with(fullInput.value) {
-                                val exprTokens = tokens.toList()
-                                        .dropLast(expressionInput.remainder.count() + fullInput.remainder.count())
+                                val exprTokens = tokens.toList().dropLast(expressionInput.remainder.count())
 
                                 val involvedCurrencies = exprTokens.asSequence()
                                         .filter { it.type == CURRENCY }
@@ -163,7 +169,7 @@ class InputExpressionGrammar(
                                             Parsed(RawInputQuery(
                                                     tokensWithoutCurrency.findExpressionType(),
                                                     tokensWithoutCurrency.toPrettyPrintExpression(),
-                                                    fixedExpressionInput.value.expressionResult.setScale(config.currencies.internalPrecision, RoundingMode.HALF_UP),
+                                                    fixedExpressionInput.value.expressionResult.toConfScale(config),
                                                     fixedExpressionInput.value.baseCurrency,
                                                     involvedCurrencies,
                                                     keys.filterIsInstance<InputKey.Add>().map { it.currencyCode },
@@ -176,7 +182,7 @@ class InputExpressionGrammar(
                                     return Parsed(RawInputQuery(
                                             exprTokens.findExpressionType(),
                                             exprTokens.toPrettyPrintExpression(),
-                                            expressionResult.setScale(config.currencies.internalPrecision, RoundingMode.HALF_UP),
+                                            expressionResult.toConfScale(config),
                                             baseCurrency,
                                             involvedCurrencies,
                                             keys.filterIsInstance<InputKey.Add>().map { it.currencyCode },

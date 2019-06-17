@@ -25,6 +25,7 @@ Implementation details which can be useful:
       token = "<telegram-bot-token>"
       apiUrl = "https://api.telegram.org/bot"${creds.telegram.token}
       creatorUsername = "<telegram-username-of-creator>"
+      creatorId = "<telegram-creator-chat-id>"
     }
   }
   ```

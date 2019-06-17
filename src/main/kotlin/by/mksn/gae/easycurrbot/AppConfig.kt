@@ -25,7 +25,8 @@ data class AppConfig(
             val token: String,
             val apiUrl: String,
             val outputWidthChars: Int,
-            val creatorUsername: String
+            val creatorUsername: String,
+            val creatorId: String
     )
 
     data class Routes(
