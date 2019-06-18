@@ -160,7 +160,7 @@ class InputExpressionGrammar(
                                         .toList()
                                         .ifEmpty { listOf(baseCurrency) }
 
-                                // single value with specified currency fix (e.g. "1 USD" auto exchanged to BYN while parsing) (grammar threat this as multicurrency expression)
+                                // single value or expression with a single currency (e.g. "1 USD" auto exchanged to BYN while parsing) (grammar threat this as multicurrency expression)
                                 if (involvedCurrencies.size == 1 && (involvedCurrencies[0] != baseCurrency || involvedCurrencies[0] == config.currencies.apiBase)) {
                                     val normalizedExprTokens = exprTokens.asSequence().filter { it.type != CURRENCY } + tokenizer.tokenize(involvedCurrencies[0])
                                     return when (val fixedExpressionInput = singleCurrencyInputParser.tryParseToEnd(normalizedExprTokens )) {

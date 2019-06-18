@@ -136,7 +136,7 @@ class InputQueryServiceTest {
     }
 
     @Test
-    fun `parse normal query with whitespace in number`() {
+    fun `parse normal query with whitespace in number 1`() {
         val input = "100 000 ,h"
         val res = service.parse(input).get()
         assertThat(res.involvedCurrencies, `is`(listOf("BYN")))
@@ -157,7 +157,7 @@ class InputQueryServiceTest {
     }
 
     @Test
-    fun `parse currency pattern query`() {
+    fun `parse currency pattern query 1`() {
         val input = "12012.12 ,h"
         val res = service.parse(input).get()
         assertThat(res.involvedCurrencies, `is`(listOf("BYN")))
@@ -180,7 +180,7 @@ class InputQueryServiceTest {
     }
 
     @Test
-    fun `parse expression query`() {
+    fun `parse expression query 1`() {
         val input = "3-(2*3)+1"
         val res = service.parse(input).get()
         assertThat(res.involvedCurrencies, `is`(listOf("BYN")))
@@ -303,7 +303,7 @@ class InputQueryServiceTest {
     }
 
     @Test
-    fun `parse multi currency expression query 4 (chained simple operands)`() {
+    fun `parse chained simple operands expression query 1`() {
         val input = "1000$ * 0.91 / 10"
         val res = service.parse(input).get()
         assertThat(res.involvedCurrencies, `is`(listOf("USD")))
@@ -314,7 +314,7 @@ class InputQueryServiceTest {
     }
 
     @Test
-    fun `parse multi currency expression query 5 (chained simple operands)`() {
+    fun `parse chained simple operands expression query 2`() {
         val input = "1000$ * 0.91 / 10 * 10"
         val res = service.parse(input).get()
         assertThat(res.involvedCurrencies, `is`(listOf("USD")))
@@ -326,7 +326,7 @@ class InputQueryServiceTest {
     }
 
     @Test
-    fun `parse multi currency expression query 6 (chained simple operands)`() {
+    fun `parse chained simple operands expression query 3`() {
         val input = "10 * 10 * 10 euro + 10 USD"
         val res = service.parse(input).get()
         assertThat(res.involvedCurrencies, `is`(listOf("EUR", "USD")))
@@ -337,7 +337,7 @@ class InputQueryServiceTest {
     }
 
     @Test
-    fun `parse multi currency expression query 7 (chained simple operands)`() {
+    fun `parse chained simple operands expression query 4`() {
         val input = "(1000$ * 0.91) / 10 * 10"
         val res = service.parse(input).get()
         assertThat(res.involvedCurrencies, `is`(listOf("USD")))
@@ -352,6 +352,7 @@ class InputQueryServiceTest {
         val input = "asd?/"
         val res = service.parse(input)
         assertTrue(res is Result.Failure<InputError>)
+        assertThat(res.component2()!!.errorPosition, `is`(1))
         println(res.component2()!!.toMarkdown())
     }
 
@@ -360,6 +361,7 @@ class InputQueryServiceTest {
         val input = "/*123 -BYN"
         val res = service.parse(input)
         assertTrue(res is Result.Failure<InputError>)
+        assertThat(res.component2()!!.errorPosition, `is`(1))
         println(res.component2()!!.toMarkdown())
     }
     @Test
@@ -367,6 +369,7 @@ class InputQueryServiceTest {
         val input = "%23"
         val res = service.parse(input)
         assertTrue(res is Result.Failure<InputError>)
+        assertThat(res.component2()!!.errorPosition, `is`(1))
         println(res.component2()!!.toMarkdown())
     }
 
@@ -375,6 +378,7 @@ class InputQueryServiceTest {
         val input = "123^^"
         val res = service.parse(input)
         assertTrue(res is Result.Failure<InputError>)
+        assertThat(res.component2()!!.errorPosition, `is`(4))
         println(res.component2()!!.toMarkdown())
     }
 
@@ -383,6 +387,7 @@ class InputQueryServiceTest {
         val input = "123/0"
         val res = service.parse(input)
         assertTrue(res is Result.Failure<InputError>)
+        assertThat(res.component2()!!.errorPosition, `is`(5))
         println(res.component2()!!.toMarkdown())
     }
 
@@ -391,6 +396,16 @@ class InputQueryServiceTest {
         val input = "*1000"
         val res = service.parse(input)
         assertTrue(res is Result.Failure<InputError>)
+        assertThat(res.component2()!!.errorPosition, `is`(1))
+        println(res.component2()!!.toMarkdown())
+    }
+
+    @Test
+    fun `parse invalid expression value query 6`() {
+        val input = "1.9к$ * 0ю91"
+        val res = service.parse(input)
+        assertTrue(res is Result.Failure<InputError>)
+        assertThat(res.component2()!!.errorPosition, `is`(10))
         println(res.component2()!!.toMarkdown())
     }
 
@@ -399,6 +414,7 @@ class InputQueryServiceTest {
         val input = "123EUR / 123 USD"
         val res = service.parse(input)
         assertTrue(res is Result.Failure<InputError>)
+        assertThat(res.component2()!!.errorPosition, `is`(14))
         println(res.component2()!!.toMarkdown())
     }
 
@@ -408,6 +424,7 @@ class InputQueryServiceTest {
         val input = "123EUR / 0 + 23 USD"
         val res = service.parse(input)
         assertTrue(res is Result.Failure<InputError>)
+        assertThat(res.component2()!!.errorPosition, `is`(10))
         println(res.component2()!!.toMarkdown())
     }
 
@@ -416,6 +433,7 @@ class InputQueryServiceTest {
         val input = "123 && EUR / 0 + 23 USD"
         val res = service.parse(input)
         assertTrue(res is Result.Failure<InputError>)
+        assertThat(res.component2()!!.errorPosition, `is`(5))
         println(res.component2()!!.toMarkdown())
     }
 
@@ -425,11 +443,12 @@ class InputQueryServiceTest {
         val input = "123 EUR EUR"
         val res = service.parse(input)
         assertTrue(res is Result.Failure<InputError>)
+        assertThat(res.component2()!!.errorPosition, `is`(9))
         println(res.component2()!!.toMarkdown())
     }
 
     @Test
-    fun `parse query with other base`() {
+    fun `parse query with other base 1`() {
         val input = "18$"
         val res = service.parse(input).get()
         assertThat(res.involvedCurrencies, `is`(listOf("USD")))

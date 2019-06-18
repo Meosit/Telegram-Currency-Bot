@@ -20,8 +20,8 @@ class InputQueryService(
             .toMap()
 
     private val currencyAliasRegex = "[a-zA-Zа-яА-Я\\[\\],';.`]{2,}|[a-zA-Zа-яА-Я€$£\u20BD₴¥Ұ]".toRegex()
-    private val kiloSuffixes = charArrayOf('k', 'K', 'к', 'К')
     private val spaceInNumberRegex = "[0-9,.](\\s+)[0-9.,]".toRegex()
+    private val kiloSuffixes = charArrayOf('k', 'K', 'к', 'К')
     private val grammar = InputExpressionGrammar(config, exchangeRateService)
 
     private fun removeWhitespacesFromNumbers(query: String): String {
@@ -58,7 +58,7 @@ class InputQueryService(
                 if (currency == null) {
                     return Result.failure(InputError(
                             rawInput = query.trimToLength(config.telegram.outputWidthChars, tail = "…"),
-                            errorPosition = match.range.start + 1,
+                            errorPosition = match.range.start + 1 + lastPositionCorrection,
                             message = config.strings.errors.invalidMatcherProvided.format(match.value)
                     ))
                 } else {
