@@ -85,15 +85,15 @@ class InputExpressionGrammar(
 
 
     // resulting parsers
-    private val singleCurrencyInputParser by subSumChain and optional(currency) and keyChain map { (exprResult, exprCurrency, keys) ->
-        EvaluatedInput(exprResult, exprCurrency ?: config.currencies.apiBase, keys)
+    private val singleCurrencyInputParser by optional(subSumChain) and optional(currency) and keyChain map { (exprResult, exprCurrency, keys) ->
+        EvaluatedInput(exprResult ?: 1.toConfScaledBigDecimal(config), exprCurrency ?: config.currencies.apiBase, keys)
     }
     private val multiCurrencyInputParser by currenciedSubSumChain and keyChain map { (exprResult, keys) ->
         EvaluatedInput(exprResult, config.currencies.apiBase, keys)
     }
 
 
-    private val expressionInputParser by currenciedSubSumChain or subSumChain
+    private val expressionInputParser by currenciedSubSumChain or subSumChain or (currency use { 1.toConfScaledBigDecimal(config) })
     private val fullInputParser by multiCurrencyInputParser or singleCurrencyInputParser
 
 
@@ -104,27 +104,30 @@ class InputExpressionGrammar(
 
     private val outputFormat = DecimalFormat(config.currencies.outputSumPattern)
 
-    private fun List<TokenMatch>.toPrettyPrintExpression(): String = this.asSequence()
-            .filter { it.type != WHITESPACE }
-            .map {
-                when (it.type) {
-                    KILO -> "k"
-                    MINUS -> " - "
-                    PLUS -> " + "
-                    CURRENCY -> " ${it.text}"
-                    else -> it.text
-                }
-            }.joinToString("")
-            .replace("( - ", "(-")
-            .replace(unaryOperatorAtStartRegex) { "(-${it.groups[1]!!.value})" }
-            .replace(unaryOperatorAfterBinaryRegex) { "${it.groups[1]!!.value}(-${it.groups[2]!!.value})" }
-            .replace(numberWithKiloRegex) {
-                val base = it.groups[1]!!.value.toBigDecimal()
-                val res = it.groups[3]!!.value.foldRight(base.toConfScale(config)) { _, acc -> acc * 1000.toConfScaledBigDecimal(config) }
-                outputFormat.format(res)
-            }
+    private fun List<TokenMatch>.toPrettyPrintExpression(): String =
+            if (size == 1 && this[0].type == CURRENCY) "1" else
+                this.asSequence()
+                        .filter { it.type != WHITESPACE }
+                        .map {
+                            when (it.type) {
+                                KILO -> "k"
+                                MINUS -> " - "
+                                PLUS -> " + "
+                                CURRENCY -> " ${it.text}"
+                                else -> it.text
+                            }
+                        }.joinToString("")
+                        .replace("( - ", "(-")
+                        .replace(unaryOperatorAtStartRegex) { "(-${it.groups[1]!!.value})" }
+                        .replace(unaryOperatorAfterBinaryRegex) { "${it.groups[1]!!.value}(-${it.groups[2]!!.value})" }
+                        .replace(numberWithKiloRegex) {
+                            val base = it.groups[1]!!.value.toBigDecimal()
+                            val res = it.groups[3]!!.value.foldRight(base.toConfScale(config)) { _, acc -> acc * 1000.toConfScaledBigDecimal(config) }
+                            outputFormat.format(res)
+                        }
 
     private fun List<TokenMatch>.findExpressionType() = when {
+        size == 1 && first().type == CURRENCY -> ExpressionType.SINGLE_VALUE
         any { it.type == CURRENCY } -> ExpressionType.MULTI_CURRENCY_EXPR
         asSequence()
                 .filterNot { it.type == NUMBER }
@@ -163,7 +166,7 @@ class InputExpressionGrammar(
                                 // single value or expression with a single currency (e.g. "1 USD" auto exchanged to BYN while parsing) (grammar threat this as multicurrency expression)
                                 if (involvedCurrencies.size == 1 && (involvedCurrencies[0] != baseCurrency || involvedCurrencies[0] == config.currencies.apiBase)) {
                                     val normalizedExprTokens = exprTokens.asSequence().filter { it.type != CURRENCY } + tokenizer.tokenize(involvedCurrencies[0])
-                                    return when (val fixedExpressionInput = singleCurrencyInputParser.tryParseToEnd(normalizedExprTokens )) {
+                                    return when (val fixedExpressionInput = singleCurrencyInputParser.tryParseToEnd(normalizedExprTokens)) {
                                         is Parsed -> {
                                             val tokensWithoutCurrency = normalizedExprTokens.toList().dropLast(1)
                                             Parsed(RawInputQuery(

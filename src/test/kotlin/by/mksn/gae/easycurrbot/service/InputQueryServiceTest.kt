@@ -448,6 +448,24 @@ class InputQueryServiceTest {
     }
 
     @Test
+    fun `parse invalid multi currency expression query 5`() {
+        val input = "10 долларов + 10 евро / 0"
+        val res = service.parse(input)
+        assertTrue(res is Result.Failure<InputError>)
+        assertThat(res.component2()!!.errorPosition, `is`(25))
+        println(res.component2()!!.toMarkdown())
+    }
+
+    @Test
+    fun `parse invalid multi currency expression query 6`() {
+        val input = "10 / 0 +долларов"
+        val res = service.parse(input)
+        assertTrue(res is Result.Failure<InputError>)
+        assertThat(res.component2()!!.errorPosition, `is`(6))
+        println(res.component2()!!.toMarkdown())
+    }
+
+    @Test
     fun `parse query with other base 1`() {
         val input = "18$"
         val res = service.parse(input).get()
@@ -518,6 +536,39 @@ class InputQueryServiceTest {
         assertThat(res.targets, `is`(listOf("BYN", "USD", "EUR", "UAH")))
     }
 
+
+
+    @Test
+    fun `parse currency-only query 1`() {
+        val input = "Гривна"
+        val res = service.parse(input).get()
+        assertThat(res.involvedCurrencies, `is`(listOf("UAH")))
+        assertThat(res.baseCurrency, `is`("UAH"))
+        assertThat(res.type, `is`(ExpressionType.SINGLE_VALUE))
+        assertThat(res.expressionResult, `is`("1.00000000".toBigDecimal()))
+        assertThat(res.targets, `is`(listOf("BYN", "USD", "EUR", "RUB", "UAH")))
+    }
+
+    @Test
+    fun `parse currency-only query 2`() {
+        val input = "рубль +гривна"
+        val res = service.parse(input).get()
+        assertThat(res.involvedCurrencies, `is`(listOf("RUB")))
+        assertThat(res.baseCurrency, `is`("RUB"))
+        assertThat(res.type, `is`(ExpressionType.SINGLE_VALUE))
+        assertThat(res.expressionResult, `is`("1.00000000".toBigDecimal()))
+        assertThat(res.targets, `is`(listOf("BYN", "USD", "EUR", "RUB", "UAH")))
+    }
+
+
+    @Test
+    fun `parse invalid currency-only query 1`() {
+        val input = "доллар &"
+        val res = service.parse(input)
+        assertTrue(res is Result.Failure<InputError>)
+        assertThat(res.component2()!!.errorPosition, `is`(8))
+        println(res.component2()!!.toMarkdown())
+    }
 
 
 }

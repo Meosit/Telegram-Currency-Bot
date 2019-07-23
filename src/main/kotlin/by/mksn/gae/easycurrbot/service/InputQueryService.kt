@@ -42,7 +42,9 @@ class InputQueryService(
         var lastPositionCorrection = 0
         var nextSearchStart = 0
         var match = currencyAliasRegex.find(result, nextSearchStart)
+        var currencyAtQueryEnd = false
         while (match != null) {
+            currencyAtQueryEnd = (match.range.endInclusive == result.lastIndex)
             if (match.value.all { it in kiloSuffixes }) {
                 result = result.replaceRange(match.range, config.strings.kiloSpecialChar.repeat(match.value.length))
                 lastPositionCorrection = 0
@@ -73,8 +75,8 @@ class InputQueryService(
         }
         result = result.replace(",", ".")
         result = removeWhitespacesFromNumbers(result)
-        val errorPositionCorrection = query.length - result.length - lastPositionCorrection
-        return Result.success(result to (errorPositionCorrection - lastPositionCorrection))
+        val errorPositionCorrection = query.length - result.length - if (currencyAtQueryEnd) lastPositionCorrection else 0
+        return Result.success(result to errorPositionCorrection)
     }
 
     private fun ErrorResult.toInputError(rawInput: String, errorPositionCorrection: Int): InputError = when {
