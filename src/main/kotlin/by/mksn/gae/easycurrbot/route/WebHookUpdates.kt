@@ -6,25 +6,24 @@ import by.mksn.gae.easycurrbot.entity.happenedAfter
 import by.mksn.gae.easycurrbot.service.CombinedService
 import io.ktor.application.Application
 import io.ktor.application.call
-import io.ktor.client.features.BadResponseStatusException
+import io.ktor.client.features.ResponseException
 import io.ktor.client.response.readText
 import io.ktor.http.HttpStatusCode
 import io.ktor.request.receive
 import io.ktor.response.respond
 import io.ktor.routing.Routing
 import io.ktor.routing.post
-import io.ktor.util.KtorExperimentalAPI
 import io.ktor.util.date.GMTDate
 import me.ivmg.telegram.entities.Chat
 import me.ivmg.telegram.entities.InlineQuery
 import me.ivmg.telegram.entities.Message
 import me.ivmg.telegram.entities.User
-import org.slf4j.LoggerFactory
+import java.util.logging.Level
+import java.util.logging.Logger
 
 
-private val LOG = LoggerFactory.getLogger(Application::class.java)!!
+private val LOG = Logger.getLogger(Application::class.simpleName)!!
 
-@KtorExperimentalAPI
 fun Routing.handleUpdate(config: AppConfig, service: CombinedService, serverStartTime: GMTDate) {
     post(config.routes.updates) {
         val update = call.receive<Update>()
@@ -48,12 +47,15 @@ fun Routing.handleUpdate(config: AppConfig, service: CombinedService, serverStar
                 }
             }
         } catch (e: Exception) {
-            val cause = (e as? BadResponseStatusException)?.response?.readText() ?: e.message
-            LOG.info("Unexpected error", e)
-            LOG.info("Update: $update")
-            LOG.info("Cause: $cause")
-            service.output.sendMarkdownToChat(config.telegram.creatorId, "Error received:\n" +
-                    "```\nQuery: ${update.message?.text ?: update.editedMessage?.text ?: update.inlineQuery?.query}\n\nCause: $cause```")
+            val cause = (e as? ResponseException)?.response?.readText() ?: e.message ?: "No exception message supplied"
+            val queryString = (update.message ?: update.editedMessage)?.text ?: update.inlineQuery?.query
+            val user = (update.message ?: update.editedMessage)?.chat?.userReadableName(config) ?: update.inlineQuery?.from?.userReadableName(config)
+            if ("query is too old" in cause) {
+                LOG.warning("\nIgnored 'query is too old'-like error")
+            } else {
+                LOG.log(Level.SEVERE, "Unexpected error: \nCause: $cause\nUpdate: $update", e)
+                service.output.sendMarkdownToChat(config.telegram.creatorId, "Error received:\n```\nQuery: $queryString\nUser: $user\n\nCause: $cause```")
+            }
         }
         call.respond(HttpStatusCode.OK)
     }
@@ -63,13 +65,13 @@ private suspend fun InlineQuery.handle(config: AppConfig, service: CombinedServi
     val user = from.userReadableName(config)
     when {
         query.isBlank() -> {
-            LOG.info("[InlineQuery] User: $user\n Empty query dashboard")
+            LOG.info("[InlineQuery]\nUser: $user\n Empty query dashboard")
             val exchangeResultsList = service.exchange.ratesDashboard()
             service.output.sendResultToInlineQuery(id, *exchangeResultsList)
         }
         else -> {
             val parsedQuery = service.input.parse(query)
-            LOG.info("[InlineQuery] User: $user\nInput: '$query'\nParsed: $parsedQuery")
+            LOG.info("[InlineQuery]\nUser: $user\nInput: '$query'\nParsed: $parsedQuery")
             parsedQuery.fold(success = {
                 val exchangeResults = service.exchange.exchangeInputQuery(it)
                 service.output.sendResultToInlineQuery(id, exchangeResults)
@@ -90,7 +92,7 @@ private suspend fun Message.handle(config: AppConfig, service: CombinedService) 
         else -> {
             val user = chat.userReadableName(config)
             val query = service.input.parse(text!!)
-            LOG.info("[Message] User: $user\nInput: '$text'\nParsed: $query")
+            LOG.info("[Message]\nUser: $user\nInput: '$text'\nParsed: $query")
             query.fold(success = {
                 val exchangeResults = service.exchange.exchangeInputQuery(it)
                 service.output.sendResultToChat(chat.id.toString(), exchangeResults)

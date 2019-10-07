@@ -3,14 +3,15 @@ package by.mksn.gae.easycurrbot.service
 import by.mksn.gae.easycurrbot.AppConfig
 import by.mksn.gae.easycurrbot.entity.*
 import com.google.gson.annotations.SerializedName
+import io.ktor.application.Application
 import io.ktor.client.HttpClient
 import io.ktor.client.request.get
 import kotlinx.coroutines.runBlocking
-import org.slf4j.LoggerFactory
 import java.math.BigDecimal
 import java.time.Duration
 import java.time.LocalDateTime
 import java.time.ZoneId
+import java.util.logging.Logger
 
 private data class RawExchangeRate(
         @SerializedName("Date") val exchangeDate: String,
@@ -23,7 +24,7 @@ private data class RawExchangeRate(
 
 class ExchangeRateService(private val httpClient: HttpClient, private val config: AppConfig) {
     companion object {
-        val LOG = LoggerFactory.getLogger(ExchangeRateService::class.java)!!
+        private val LOG = Logger.getLogger(Application::class.simpleName)
     }
 
     private val supportedCurrencies = config.currencies.supported.associateBy { it.code }
@@ -41,7 +42,7 @@ class ExchangeRateService(private val httpClient: HttpClient, private val config
         val now = LocalDateTime.now(ZoneId.of("UTC+3"))
         val hours = Duration.between(previousUpdateDate, now).toHours()
         if (hours >= 24) {
-            LOG.info("Reloading exchange rates...")
+            LOG.info("\nReloading exchange rates...")
             val rawExchangeRates = runBlocking { httpClient.get<List<RawExchangeRate>>(config.currencies.apiUrl) }
             exchangeRates = rawExchangeRates.asSequence()
                     .filter { it.currencyRate != null }
@@ -51,7 +52,7 @@ class ExchangeRateService(private val httpClient: HttpClient, private val config
                             { it.currencyRate!!.toConfScale(config) / it.currencyScale.toBigDecimal() }
                     )
             exchangeRates = exchangeRates + (config.currencies.apiBase to 1.toConfScaledBigDecimal(config))
-            LOG.info("Loaded ${exchangeRates.size} rates:\n"
+            LOG.info("\nLoaded ${exchangeRates.size} rates:\n"
                     + exchangeRates.map { "${it.key} -> ${it.value}" }.joinToString(separator = "\n"))
             previousUpdateDate = LocalDateTime.parse(rawExchangeRates.first().exchangeDate)
 

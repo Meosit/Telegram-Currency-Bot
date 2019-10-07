@@ -8,14 +8,17 @@ import io.ktor.html.respondHtml
 import io.ktor.http.HttpStatusCode
 import io.ktor.request.receive
 import io.ktor.response.respond
-import io.ktor.routing.*
+import io.ktor.routing.Routing
+import io.ktor.routing.get
+import io.ktor.routing.post
 import kotlinx.html.*
 import org.commonmark.parser.Parser
 import org.commonmark.renderer.html.HtmlRenderer
-import org.slf4j.LoggerFactory
+import java.util.logging.Level
+import java.util.logging.Logger
 
 
-private val LOG = LoggerFactory.getLogger(Application::class.java)!!
+private val LOG = Logger.getLogger(Application::class.simpleName)
 
 
 fun Routing.exchangeEndpoint(config: AppConfig, service: CombinedService) {
@@ -34,7 +37,7 @@ fun Routing.exchangeEndpoint(config: AppConfig, service: CombinedService) {
                 }
             }
         } catch (e: Exception) {
-            LOG.info("Unexpected error", e)
+            LOG.log(Level.SEVERE, "Unexpected error", e)
             call.respond(HttpStatusCode.InternalServerError)
         }
 
