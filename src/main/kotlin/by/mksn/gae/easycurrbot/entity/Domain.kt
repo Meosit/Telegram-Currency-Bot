@@ -1,6 +1,5 @@
 package by.mksn.gae.easycurrbot.entity
 
-import by.mksn.gae.easycurrbot.AppConfig
 import java.math.BigDecimal
 import java.math.RoundingMode
 
@@ -31,7 +30,6 @@ data class InputQuery(
     fun isOneUnit() = type == ExpressionType.SINGLE_VALUE && expression == "1"
 }
 
-
 data class InputError(
         val rawInput: String,
         val errorPosition: Int,
@@ -51,8 +49,9 @@ data class InputError(
             .replace("`", "\\`")
 }
 
-fun String.trimToLength(n: Int, tail: String = "") =
-        if (this.length <= n) this else this.take(n - tail.length) + tail
+data class ExchangedSum(val currency: Currency, val sum: BigDecimal)
+
+data class ExchangeResults(val input: InputQuery, val rates: List<ExchangedSum>)
 
 data class Currency(val code: String, val symbol: String, val aliases: List<String>)
 
@@ -66,64 +65,4 @@ fun Currency.toOneUnitInputQuery(internalPrecision: Int, targets: List<String>) 
         targets = targets
 )
 
-fun Int.toConfScaledBigDecimal(config: AppConfig) = toBigDecimal().toConfScale(config)
-fun String.toConfScaledBigDecimal(config: AppConfig) = toBigDecimal().toConfScale(config)
 
-fun BigDecimal.toConfScale(config: AppConfig) = setScale(config.currencies.internalPrecision, RoundingMode.HALF_UP)
-
-data class ExchangedSum(val currency: Currency, val sum: BigDecimal)
-
-data class ExchangeResults(val input: InputQuery, val rates: List<ExchangedSum>)
-
-sealed class Result<out V, out E> {
-
-    open operator fun component1(): V? = null
-    open operator fun component2(): E? = null
-
-    inline fun <X> fold(success: (V) -> X, failure: (E) -> X): X = when (this) {
-        is Success -> success(this.value)
-        is Failure -> failure(this.error)
-    }
-
-    abstract fun get(): V
-
-    class Success<out V : Any>(val value: V) : Result<V, Nothing>() {
-        override fun component1(): V? = value
-
-        override fun get(): V = value
-
-        override fun toString() = "[Success: $value]"
-
-        override fun hashCode(): Int = value.hashCode()
-
-        override fun equals(other: Any?): Boolean {
-            if (this === other) return true
-            return other is Success<*> && value == other.value
-        }
-    }
-
-    class Failure<out E : Any>(val error: E) : Result<Nothing, E>() {
-        override fun component2(): E? = error
-
-        override fun get() = throw IllegalStateException("Cannot retrieve success result from Failure: $error")
-
-        override fun toString() = "[Failure: \"$error\"]"
-
-        override fun hashCode(): Int = error.hashCode()
-
-        override fun equals(other: Any?): Boolean {
-            if (this === other) return true
-            return other is Failure<*> && error == other.error
-        }
-    }
-
-    companion object {
-        fun <E : Any> failure(v: E) = Failure(v)
-        fun <V : Any> success(v: V) = Success(v)
-    }
-
-}
-
-inline fun <V : Any> Result<V, *>.success(f: (V) -> Unit) = fold(f, {})
-
-inline fun <E : Any> Result<*, E>.failure(f: (E) -> Unit) = fold({}, f)

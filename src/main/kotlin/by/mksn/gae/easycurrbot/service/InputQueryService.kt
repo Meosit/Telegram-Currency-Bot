@@ -4,7 +4,7 @@ import by.mksn.gae.easycurrbot.AppConfig
 import by.mksn.gae.easycurrbot.entity.InputError
 import by.mksn.gae.easycurrbot.entity.InputQuery
 import by.mksn.gae.easycurrbot.entity.Result
-import by.mksn.gae.easycurrbot.entity.trimToLength
+import by.mksn.gae.easycurrbot.extensions.trimToLength
 import by.mksn.gae.easycurrbot.grammar.DivisionByZero
 import by.mksn.gae.easycurrbot.grammar.InputExpressionGrammar
 import com.github.h0tk3y.betterParse.grammar.tryParseToEnd
@@ -15,11 +15,8 @@ class InputQueryService(
         exchangeRateService: ExchangeRateService
 ) {
 
-    private val currencyAliases: Map<String, String> = config.currencies.supported
-            .flatMap { c -> c.aliases.map { it.toLowerCase() to c.code } }
-            .toMap()
+    private val currencyAliasMatcher = CurrencyAliasMatcher(config)
 
-    private val currencyAliasRegex = "[a-zA-Zа-яА-Я\\[\\],';.`]{2,}|[a-zA-Zа-яА-Я€$£\u20BD₴¥Ұ]".toRegex()
     private val spaceInNumberRegex = "[0-9,.](\\s+)[0-9.,]".toRegex()
     private val kiloSuffixes = charArrayOf('k', 'K', 'к', 'К')
     private val grammar = InputExpressionGrammar(config, exchangeRateService)
@@ -41,7 +38,7 @@ class InputQueryService(
         var result = query
         var lastPositionCorrection = 0
         var nextSearchStart = 0
-        var match = currencyAliasRegex.find(result, nextSearchStart)
+        var match = CurrencyAliasMatcher.CURRENCY_ALIAS_REGEX.find(result, nextSearchStart)
         var currencyAtQueryEnd = false
         while (match != null) {
             currencyAtQueryEnd = (match.range.endInclusive == result.lastIndex)
@@ -51,10 +48,10 @@ class InputQueryService(
             } else {
                 var kiloSuffixCount = 0
                 var normalizedMatch = match.value.toLowerCase()
-                var currency = currencyAliases[match.value.toLowerCase()]
+                var currency = currencyAliasMatcher.matchToCurrencyCode(match.value)
                 while (currency == null && normalizedMatch.length > 1 && normalizedMatch[0] in kiloSuffixes) {
                     normalizedMatch = normalizedMatch.drop(1)
-                    currency = currencyAliases[normalizedMatch]
+                    currency = currencyAliasMatcher.matchToCurrencyCode(normalizedMatch)
                     kiloSuffixCount++
                 }
                 if (currency == null) {
@@ -71,7 +68,7 @@ class InputQueryService(
             }
 
             nextSearchStart = match.range.endInclusive - lastPositionCorrection + 1
-            match = currencyAliasRegex.find(result, nextSearchStart)
+            match = CurrencyAliasMatcher.CURRENCY_ALIAS_REGEX.find(result, nextSearchStart)
         }
         result = result.replace(",", ".")
         result = removeWhitespacesFromNumbers(result)

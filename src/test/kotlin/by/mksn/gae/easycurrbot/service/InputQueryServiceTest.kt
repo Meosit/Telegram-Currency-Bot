@@ -111,6 +111,19 @@ class InputQueryServiceTest {
 
     @Test
     fun `parse normal query with metric prefix 6`() {
+        val input = "1кр"
+        val res = service.parse(input).get()
+        assertThat(res.involvedCurrencies, `is`(listOf("RUB")))
+        assertThat(res.baseCurrency, `is`("RUB"))
+        assertThat(res.type, `is`(ExpressionType.SINGLE_VALUE))
+        assertThat(res.expression, `is`("1000"))
+        assertThat(res.expressionResult, `is`("1000.00000000".toBigDecimal()))
+        assertThat(res.targets, `is`(listOf("BYN", "USD", "EUR", "RUB")))
+    }
+
+
+    @Test
+    fun `parse normal query with metric prefix 7`() {
         val input = "1kkc + 10k$"
         val res = service.parse(input).get()
         assertThat(res.involvedCurrencies, `is`(listOf("CZK", "USD")))
@@ -124,7 +137,7 @@ class InputQueryServiceTest {
 
 
     @Test
-    fun `parse normal query with metric prefix 7`() {
+    fun `parse normal query with metric prefix 8`() {
         val input = "1k BYN + 10k BYN"
         val res = service.parse(input).get()
         assertThat(res.involvedCurrencies, `is`(listOf("BYN")))

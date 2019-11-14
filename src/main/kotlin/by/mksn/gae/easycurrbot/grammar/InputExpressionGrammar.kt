@@ -4,8 +4,8 @@ package by.mksn.gae.easycurrbot.grammar
 import by.mksn.gae.easycurrbot.AppConfig
 import by.mksn.gae.easycurrbot.entity.ExpressionType
 import by.mksn.gae.easycurrbot.entity.RawInputQuery
-import by.mksn.gae.easycurrbot.entity.toConfScale
-import by.mksn.gae.easycurrbot.entity.toConfScaledBigDecimal
+import by.mksn.gae.easycurrbot.extensions.toConfScale
+import by.mksn.gae.easycurrbot.extensions.toConfScaledBigDecimal
 import by.mksn.gae.easycurrbot.service.ExchangeRateService
 import com.github.h0tk3y.betterParse.combinators.*
 import com.github.h0tk3y.betterParse.grammar.Grammar
