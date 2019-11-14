@@ -14,8 +14,7 @@ data class RawInputQuery(
         val expressionResult: BigDecimal,
         val baseCurrency: String,
         val involvedCurrencies: List<String>,
-        val addCurrencies: List<String>,
-        val removeCurrencies: List<String>
+        val addCurrencies: List<String>
 )
 
 data class InputQuery(

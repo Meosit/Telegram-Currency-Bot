@@ -16,19 +16,11 @@ import com.github.h0tk3y.betterParse.parser.*
 import java.math.BigDecimal
 import java.text.DecimalFormat
 
-
-private sealed class InputKey(val currencyCode: String) {
-    class Add(currencyCode: String) : InputKey(currencyCode)
-    class Remove(currencyCode: String) : InputKey(currencyCode)
-}
-
-
 private data class EvaluatedInput(
         val expressionResult: BigDecimal,
         val baseCurrency: String,
-        val keys: List<InputKey>
+        val additionalCurrencies: List<String>
 )
-
 
 data class DivisionByZero(val zeroToken: TokenMatch) : ErrorResult()
 
@@ -39,28 +31,33 @@ class InputExpressionGrammar(
         private val exchangeRateService: ExchangeRateService
 ) : Grammar<RawInputQuery>() {
 
-    private val NUMBER by token(config.strings.tokenNames.number, "\\d+([.,]\\d+)?")
+    private val NUMBER by token(config.strings.tokenNames.number, "(\\d+\\s*)+[.,](\\s*\\d+)+|(\\d+\\s*)?\\d+") // greedy space occupation
     private val KILO by token(config.strings.tokenNames.kilo, config.strings.kiloSpecialChar)
+    private val CURRENCY by token(config.strings.tokenNames.currency, "[A-Z]{3}")
+    private val WHITESPACE by token(config.strings.tokenNames.whitespace, "\\s+", ignore = true)
+    private val EXCLAMATION by token(config.strings.tokenNames.exclamation, "!")
+
     private val LEFT_PAR by token(config.strings.tokenNames.leftPar, "\\(")
     private val RIGHT_PAR by token(config.strings.tokenNames.rightPar, "\\)")
+
     private val MULTIPLY by token(config.strings.tokenNames.multiply, "\\*")
     private val DIVIDE by token(config.strings.tokenNames.divide, "/")
     private val MINUS by token(config.strings.tokenNames.minus, "-")
     private val PLUS by token(config.strings.tokenNames.plus, "\\+")
-    private val WHITESPACE by token(config.strings.tokenNames.whitespace, "\\s+", ignore = true)
-    private val CURRENCY by token(config.strings.tokenNames.currency, "[A-Z]{3}")
 
     // parameters list
     private val currency by CURRENCY use { text }
-    private val currencyKey by skip(WHITESPACE) and
-            (((skip(MINUS) and parser(this::currency)) map { InputKey.Remove(it) }) or
-                    ((skip(PLUS) and parser(this::currency)) map { InputKey.Add(it) }))
+
+    private val currencyKey by skip(WHITESPACE) and (skip(PLUS or EXCLAMATION) and parser(this::currency)) map { it }
 
     private val keyChain by zeroOrMore(currencyKey)
 
     // simple math expression
     private val number by NUMBER and zeroOrMore(KILO) map { (num, kilos) ->
-        kilos.foldRight(num.text.toConfScaledBigDecimal(config)) { _, acc -> acc * 1000.toConfScaledBigDecimal(config) }
+        kilos.foldRight(num.text
+                .replace(" ", "").replace(',', '.')
+                .toConfScaledBigDecimal(config)
+        ) { _, acc -> acc * 1000.toConfScaledBigDecimal(config) }
     }
 
     private val term: Parser<BigDecimal> by number or
@@ -99,7 +96,7 @@ class InputExpressionGrammar(
 
     private val unaryOperatorAtStartRegex = "^ - (\\d+([.,]\\d+)?( [A-Z]{3})?)".toRegex()
     private val unaryOperatorAfterBinaryRegex = "([-+*/] ?) - (\\d+([.,]\\d+)?( [A-Z]{3})?)".toRegex()
-    private val zeroNumberRegex = "0+([.,]0+)?".toRegex()
+    private val zeroNumberRegex = "(0+\\s*)+([.,](\\s*0+)+)?".toRegex()
     private val numberWithKiloRegex = "(\\d+([.,]\\d+)?)(k+)".toRegex()
 
     private val outputFormat = DecimalFormat(config.currencies.outputSumPattern)
@@ -114,6 +111,7 @@ class InputExpressionGrammar(
                                 MINUS -> " - "
                                 PLUS -> " + "
                                 CURRENCY -> " ${it.text}"
+                                NUMBER -> it.text.replace(',', '.').replace(" ", "")
                                 else -> it.text
                             }
                         }.joinToString("")
@@ -175,8 +173,7 @@ class InputExpressionGrammar(
                                                     fixedExpressionInput.value.expressionResult.toConfScale(config),
                                                     fixedExpressionInput.value.baseCurrency,
                                                     involvedCurrencies,
-                                                    keys.filterIsInstance<InputKey.Add>().map { it.currencyCode },
-                                                    keys.filterIsInstance<InputKey.Remove>().map { it.currencyCode }
+                                                    additionalCurrencies
                                             ), fullInput.remainder)
                                         }
                                         is ErrorResult -> fixedExpressionInput
@@ -188,8 +185,7 @@ class InputExpressionGrammar(
                                             expressionResult.toConfScale(config),
                                             baseCurrency,
                                             involvedCurrencies,
-                                            keys.filterIsInstance<InputKey.Add>().map { it.currencyCode },
-                                            keys.filterIsInstance<InputKey.Remove>().map { it.currencyCode }
+                                            additionalCurrencies
                                     ), fullInput.remainder)
                                 }
                             }

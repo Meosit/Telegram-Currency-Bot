@@ -70,8 +70,6 @@ class InputQueryService(
             nextSearchStart = match.range.endInclusive - lastPositionCorrection + 1
             match = CurrencyAliasMatcher.CURRENCY_ALIAS_REGEX.find(result, nextSearchStart)
         }
-        result = result.replace(",", ".")
-        result = removeWhitespacesFromNumbers(result)
         val errorPositionCorrection = query.length - result.length - if (currencyAtQueryEnd) lastPositionCorrection else 0
         return Result.success(result to errorPositionCorrection)
     }
@@ -131,7 +129,6 @@ class InputQueryService(
                 val targets = involvedCurrencies.toMutableSet()
                 targets.addAll(config.currencies.default)
                 targets.addAll(addCurrencies)
-                targets.removeAll(removeCurrencies)
 
                 Result.success(InputQuery(
                         rawInput = rawInput,

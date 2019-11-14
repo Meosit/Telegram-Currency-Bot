@@ -64,7 +64,8 @@ data class AppConfig(
                 val minus: String,
                 val plus: String,
                 val whitespace: String,
-                val currency: String
+                val currency: String,
+                val exclamation: String
         )
 
         data class Errors(
