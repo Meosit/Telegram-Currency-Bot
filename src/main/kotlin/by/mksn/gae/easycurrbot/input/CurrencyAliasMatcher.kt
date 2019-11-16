@@ -1,4 +1,4 @@
-package by.mksn.gae.easycurrbot.service
+package by.mksn.gae.easycurrbot.input
 
 import by.mksn.gae.easycurrbot.AppConfig
 
@@ -7,16 +7,31 @@ import by.mksn.gae.easycurrbot.AppConfig
  */
 class CurrencyAliasMatcher(config: AppConfig) {
 
-    private val currencyAliases: Map<String, String> = config.currencies.supported
-            .flatMap { c -> c.aliases.map { it.toLowerCase() to c.code } }
-            .toMap()
+    private val currencyAliases: Map<String, String> = sequence {
+        config.currencies.supported.forEach { currency ->
+            currency.aliases.forEach { alias ->
+                yield(alias.toLowerCase() to currency.code)
+                if (alias.length > 1) {
+                    yield(alias.switchKeyboardEnglishToRussian().toLowerCase() to currency.code)
+                    yield(alias.switchKeyboardRussianToEnglish().toLowerCase() to currency.code)
+                }
+            }
+        }
+    }.toMap()
 
     /**
-     * Returns the currency code of the provided alias or `null` if no match found
+     * Returns the currency code of the provided alias
+     * @throws IllegalArgumentException in case of unknown alias
      */
-    fun matchToCurrencyCode(alias: String): String? = currencyAliases[alias.toLowerCase()]
-            ?: currencyAliases[alias.switchKeyboardEnglishToRussian().toLowerCase()]
-            ?: currencyAliases[alias.switchKeyboardRussianToEnglish().toLowerCase()]
+    fun matchToCode(alias: String): String =
+            matchToCodeOrNull(alias) ?: throw IllegalArgumentException("Invalid alias '$alias'")
+
+
+    /**
+     * Returns the currency code of the provided alias or `null` in case of no match
+     */
+    fun matchToCodeOrNull(alias: String): String? =
+            currencyAliases[alias.toLowerCase()]
 
     /**
      * Returns a string, contained of chars from the **russian** keyboard layout using the same *physical button* as a comparison criteria.
@@ -52,15 +67,18 @@ class CurrencyAliasMatcher(config: AppConfig) {
         return String(chars)
     }
 
+    val allAliasesRegex = currencyAliases.keys.asSequence()
+            .map { alias -> Regex.escape(alias) }
+            .distinct()
+            .sortedByDescending { it.length }
+            .joinToString("|", prefix = "(?iu)", postfix = "(?-iu)")
+            .toRegex()
+
     companion object {
         // The 'native' typing mapping of russian symbols to the corresponding english symbols on the same keyboard buttons
         // (e.g. the person forgot to switch the keyboard to russian, but started typing and vice versa)
         // NOT ALL keyboard symbols included, just the buttons where at least one letter present (either russian or english)
         private const val KEYBOARD_LETTERS_IN_RUSSIAN = """йцукенгшщзхъфывапролджэячсмитьбюёЙЦУКЕНГШЩЗХЪФЫВАПРОЛДЖЭЯЧСМИТЬБЮЁ"""
         private const val KEYBOARD_LETTERS_IN_ENGLISH = """qwertyuiop[]asdfghjkl;'zxcvbnm,.`QWERTYUIOP{}ASDFGHJKL:"ZXCVBNM<>~"""
-        /**
-         * Regular expression which represents all available names for the currency alias
-         */
-        val CURRENCY_ALIAS_REGEX = "[a-zA-Zа-яА-Я\\[\\],';.`]{2,}|[a-zA-Zа-яА-Я€$£\u20BD₴¥Ұ]".toRegex()
     }
 }

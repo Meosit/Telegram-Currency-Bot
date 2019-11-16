@@ -1,7 +1,11 @@
-package by.mksn.gae.easycurrbot.service
+package by.mksn.gae.easycurrbot.output
 
 import by.mksn.gae.easycurrbot.AppConfig
-import by.mksn.gae.easycurrbot.entity.*
+import by.mksn.gae.easycurrbot.exchange.ExchangeResults
+import by.mksn.gae.easycurrbot.grammar.expression.ExpressionType
+import by.mksn.gae.easycurrbot.input.*
+import by.mksn.gae.easycurrbot.util.InlineQueryResultArticle
+import by.mksn.gae.easycurrbot.util.InputTextMessageContent
 import com.google.gson.Gson
 import io.ktor.client.HttpClient
 import io.ktor.client.request.parameter
@@ -26,7 +30,10 @@ class OutputMessageService(private val httpClient: HttpClient, private val confi
             ExpressionType.MULTI_CURRENCY_EXPR ->
                 "#️⃣ _${results.input.expression} =_\n"
         }
-        return exprPrefix + results.rates.joinToString(separator = "\n") { "`${it.currency.symbol}${it.currency.code}`  `${sumFormat.format(it.sum)}`" }
+
+        val markdown = exprPrefix + results.rates.joinToString(separator = "\n") { "`${it.currency.symbol}${it.currency.code}`  `${sumFormat.format(it.sum)}`" }
+        return if (markdown.length <= config.telegram.maxMessageLength) markdown else
+            InputError(results.input.rawInput.trimToLength(config.telegram.outputWidthChars, tail = "…"), 1, config.strings.errors.queryTooBig).toMarkdown()
     }
 
     suspend fun sendMarkdownToChat(chatId: String, text: String, replyMessageId: String? = null) {

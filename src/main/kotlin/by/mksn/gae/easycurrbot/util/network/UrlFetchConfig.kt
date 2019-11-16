@@ -1,9 +1,9 @@
-package by.mksn.gae.easycurrbot.network
+package by.mksn.gae.easycurrbot.util.network
 
-import io.ktor.client.engine.*
-import com.google.appengine.api.urlfetch.*
-import javax.net.ssl.*
-import java.net.*
+import com.google.appengine.api.urlfetch.ResponseTooLargeException
+import com.google.appengine.api.urlfetch.URLFetchService
+import io.ktor.client.engine.HttpClientEngineConfig
+import javax.net.ssl.SSLHandshakeException
 
 class UrlFetchConfig : HttpClientEngineConfig() {
 

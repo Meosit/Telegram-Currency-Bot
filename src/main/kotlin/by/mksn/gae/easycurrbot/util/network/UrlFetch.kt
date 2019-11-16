@@ -1,7 +1,8 @@
-package by.mksn.gae.easycurrbot.network
+package by.mksn.gae.easycurrbot.util.network
 
-import io.ktor.client.*
-import io.ktor.client.engine.*
+import io.ktor.client.HttpClientEngineContainer
+import io.ktor.client.engine.HttpClientEngine
+import io.ktor.client.engine.HttpClientEngineFactory
 
 
 object UrlFetch : HttpClientEngineFactory<UrlFetchConfig> {

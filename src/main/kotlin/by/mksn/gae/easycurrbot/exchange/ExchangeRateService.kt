@@ -1,12 +1,9 @@
-package by.mksn.gae.easycurrbot.service
+package by.mksn.gae.easycurrbot.exchange
 
 import by.mksn.gae.easycurrbot.AppConfig
-import by.mksn.gae.easycurrbot.entity.ExchangeResults
-import by.mksn.gae.easycurrbot.entity.ExchangedSum
-import by.mksn.gae.easycurrbot.entity.InputQuery
-import by.mksn.gae.easycurrbot.entity.toOneUnitInputQuery
-import by.mksn.gae.easycurrbot.extensions.toConfScale
-import by.mksn.gae.easycurrbot.extensions.toConfScaledBigDecimal
+import by.mksn.gae.easycurrbot.input.InputQuery
+import by.mksn.gae.easycurrbot.util.toConfScale
+import by.mksn.gae.easycurrbot.util.toConfScaledBigDecimal
 import com.google.gson.annotations.SerializedName
 import io.ktor.application.Application
 import io.ktor.client.HttpClient

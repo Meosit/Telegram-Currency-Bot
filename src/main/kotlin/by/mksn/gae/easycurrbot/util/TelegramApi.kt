@@ -1,4 +1,4 @@
-package by.mksn.gae.easycurrbot.entity
+package by.mksn.gae.easycurrbot.util
 
 import com.google.gson.annotations.SerializedName
 import io.ktor.util.date.GMTDate

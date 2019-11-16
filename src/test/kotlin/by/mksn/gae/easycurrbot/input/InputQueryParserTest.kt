@@ -1,9 +1,9 @@
-package by.mksn.gae.easycurrbot.service
+package by.mksn.gae.easycurrbot.input
 
 import by.mksn.gae.easycurrbot.AppConfig
-import by.mksn.gae.easycurrbot.entity.ExpressionType
-import by.mksn.gae.easycurrbot.entity.InputError
-import by.mksn.gae.easycurrbot.entity.Result
+import by.mksn.gae.easycurrbot.exchange.ExchangeRateService
+import by.mksn.gae.easycurrbot.grammar.expression.ExpressionType
+import by.mksn.gae.easycurrbot.util.Result
 import com.google.gson.FieldNamingPolicy
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.apache.Apache
@@ -16,9 +16,9 @@ import org.junit.BeforeClass
 import org.junit.Test
 
 
-class InputQueryServiceTest {
+class InputQueryParserTest {
     companion object {
-        private lateinit var service: InputQueryService
+        private lateinit var queryParser: InputQueryParser
 
         private lateinit var exchanger: ExchangeRateService
 
@@ -33,14 +33,26 @@ class InputQueryServiceTest {
             }
             val config = AppConfig.create("application.conf")
             exchanger = ExchangeRateService(httpClient, config)
-            service = InputQueryService(config, exchanger)
+            queryParser = InputQueryParser(config, exchanger)
         }
     }
 
     @Test
-    fun `parse normal query`() {
+    fun `parse normal query 1`() {
         val input = "12012.12"
-        val res = service.parse(input).get()
+        val res = queryParser.parse(input).get()
+        assertThat(res.involvedCurrencies, `is`(listOf("BYN")))
+        assertThat(res.baseCurrency, `is`("BYN"))
+        assertThat(res.expression, `is`("12012.12"))
+        assertThat(res.type, `is`(ExpressionType.SINGLE_VALUE))
+        assertThat(res.expressionResult, `is`("12012.12000000".toBigDecimal()))
+        assertThat(res.targets, `is`(listOf("BYN", "USD", "EUR", "RUB")))
+    }
+
+    @Test
+    fun `parse normal query 2`() {
+        val input = "12012.12BYN"
+        val res = queryParser.parse(input).get()
         assertThat(res.involvedCurrencies, `is`(listOf("BYN")))
         assertThat(res.baseCurrency, `is`("BYN"))
         assertThat(res.expression, `is`("12012.12"))
@@ -52,7 +64,7 @@ class InputQueryServiceTest {
     @Test
     fun `parse normal query with metric prefix 1`() {
         val input = "10k"
-        val res = service.parse(input).get()
+        val res = queryParser.parse(input).get()
         assertThat(res.involvedCurrencies, `is`(listOf("BYN")))
         assertThat(res.baseCurrency, `is`("BYN"))
         assertThat(res.expression, `is`("10000"))
@@ -63,8 +75,8 @@ class InputQueryServiceTest {
 
     @Test
     fun `parse normal query with metric prefix 2`() {
-        val input = "1kk"
-        val res = service.parse(input).get()
+        val input = "1m"
+        val res = queryParser.parse(input).get()
         assertThat(res.involvedCurrencies, `is`(listOf("BYN")))
         assertThat(res.baseCurrency, `is`("BYN"))
         assertThat(res.expression, `is`("1000000"))
@@ -76,7 +88,7 @@ class InputQueryServiceTest {
     @Test
     fun `parse normal query with metric prefix 3`() {
         val input = "1kkBYN"
-        val res = service.parse(input).get()
+        val res = queryParser.parse(input).get()
         assertThat(res.involvedCurrencies, `is`(listOf("BYN")))
         assertThat(res.baseCurrency, `is`("BYN"))
         assertThat(res.expression, `is`("1000000"))
@@ -87,8 +99,8 @@ class InputQueryServiceTest {
 
     @Test
     fun `parse normal query with metric prefix 4`() {
-        val input = "1 kk BYN"
-        val res = service.parse(input).get()
+        val input = "1 M BYN"
+        val res = queryParser.parse(input).get()
         assertThat(res.involvedCurrencies, `is`(listOf("BYN")))
         assertThat(res.baseCurrency, `is`("BYN"))
         assertThat(res.expression, `is`("1000000"))
@@ -100,7 +112,7 @@ class InputQueryServiceTest {
     @Test
     fun `parse normal query with metric prefix 5`() {
         val input = "1kkc"
-        val res = service.parse(input).get()
+        val res = queryParser.parse(input).get()
         assertThat(res.involvedCurrencies, `is`(listOf("CZK")))
         assertThat(res.baseCurrency, `is`("CZK"))
         assertThat(res.type, `is`(ExpressionType.SINGLE_VALUE))
@@ -112,7 +124,7 @@ class InputQueryServiceTest {
     @Test
     fun `parse normal query with metric prefix 6`() {
         val input = "1кр"
-        val res = service.parse(input).get()
+        val res = queryParser.parse(input).get()
         assertThat(res.involvedCurrencies, `is`(listOf("RUB")))
         assertThat(res.baseCurrency, `is`("RUB"))
         assertThat(res.type, `is`(ExpressionType.SINGLE_VALUE))
@@ -125,7 +137,7 @@ class InputQueryServiceTest {
     @Test
     fun `parse normal query with metric prefix 7`() {
         val input = "1kkc + 10k$"
-        val res = service.parse(input).get()
+        val res = queryParser.parse(input).get()
         assertThat(res.involvedCurrencies, `is`(listOf("CZK", "USD")))
         assertThat(res.baseCurrency, `is`("BYN"))
         assertThat(res.type, `is`(ExpressionType.MULTI_CURRENCY_EXPR))
@@ -139,7 +151,7 @@ class InputQueryServiceTest {
     @Test
     fun `parse normal query with metric prefix 8`() {
         val input = "1k BYN + 10k BYN"
-        val res = service.parse(input).get()
+        val res = queryParser.parse(input).get()
         assertThat(res.involvedCurrencies, `is`(listOf("BYN")))
         assertThat(res.baseCurrency, `is`("BYN"))
         assertThat(res.type, `is`(ExpressionType.SINGLE_CURRENCY_EXPR))
@@ -151,7 +163,7 @@ class InputQueryServiceTest {
     @Test
     fun `parse normal query with whitespace in number 1`() {
         val input = "100 000 ,h"
-        val res = service.parse(input).get()
+        val res = queryParser.parse(input).get()
         assertThat(res.involvedCurrencies, `is`(listOf("BYN")))
         assertThat(res.baseCurrency, `is`("BYN"))
         assertThat(res.expression, `is`("100000"))
@@ -164,7 +176,7 @@ class InputQueryServiceTest {
     @Test
     fun `parse normal query with whitespace in number 2`() {
         val input = "100k 000 ,h"
-        val res = service.parse(input)
+        val res = queryParser.parse(input)
         assertTrue(res is Result.Failure<InputError>)
         println(res.component2()!!.toMarkdown())
     }
@@ -172,7 +184,7 @@ class InputQueryServiceTest {
     @Test
     fun `parse currency pattern query 1`() {
         val input = "12012.12 ,h"
-        val res = service.parse(input).get()
+        val res = queryParser.parse(input).get()
         assertThat(res.involvedCurrencies, `is`(listOf("BYN")))
         assertThat(res.baseCurrency, `is`("BYN"))
         assertThat(res.expression, `is`("12012.12"))
@@ -184,7 +196,7 @@ class InputQueryServiceTest {
     @Test
     fun `parse currency pattern query 2`() {
         val input = "12 he,kz"
-        val res = service.parse(input).get()
+        val res = queryParser.parse(input).get()
         assertThat(res.involvedCurrencies, `is`(listOf("RUB")))
         assertThat(res.baseCurrency, `is`("RUB"))
         assertThat(res.expression, `is`("12"))
@@ -195,10 +207,10 @@ class InputQueryServiceTest {
     @Test
     fun `parse expression query 1`() {
         val input = "3-(2*3)+1"
-        val res = service.parse(input).get()
+        val res = queryParser.parse(input).get()
         assertThat(res.involvedCurrencies, `is`(listOf("BYN")))
         assertThat(res.baseCurrency, `is`("BYN"))
-        assertThat(res.expression, `is`("3 - (2*3) + 1"))
+        assertThat(res.expression, `is`("3 - 2*3 + 1"))
         assertThat(res.type, `is`(ExpressionType.SINGLE_CURRENCY_EXPR))
         assertThat(res.expressionResult, `is`("-2.00000000".toBigDecimal()))
         assertThat(res.targets, `is`(listOf("BYN", "USD", "EUR", "RUB")))
@@ -207,7 +219,7 @@ class InputQueryServiceTest {
     @Test
     fun `parse expression query 2`() {
         val input = "0,1+0,2"
-        val res = service.parse(input).get()
+        val res = queryParser.parse(input).get()
         assertThat(res.involvedCurrencies, `is`(listOf("BYN")))
         assertThat(res.baseCurrency, `is`("BYN"))
         assertThat(res.expression, `is`("0.1 + 0.2"))
@@ -219,7 +231,7 @@ class InputQueryServiceTest {
     @Test
     fun `parse expression query 3`() {
         val input = "0,1 + 0,2"
-        val res = service.parse(input).get()
+        val res = queryParser.parse(input).get()
         assertThat(res.involvedCurrencies, `is`(listOf("BYN")))
         assertThat(res.expression, `is`("0.1 + 0.2"))
         assertThat(res.type, `is`(ExpressionType.SINGLE_CURRENCY_EXPR))
@@ -230,7 +242,7 @@ class InputQueryServiceTest {
     @Test
     fun `parse expression query 4`() {
         val input = "(0,1 + 0,2) / (2 * 2) !CZK"
-        val res = service.parse(input).get()
+        val res = queryParser.parse(input).get()
         assertThat(res.involvedCurrencies, `is`(listOf("BYN")))
         assertThat(res.baseCurrency, `is`("BYN"))
         assertThat(res.expression, `is`("(0.1 + 0.2)/(2*2)"))
@@ -242,7 +254,7 @@ class InputQueryServiceTest {
     @Test
     fun `parse expression query 5`() {
         val input = "2+7--7 +CZK"
-        val res = service.parse(input).get()
+        val res = queryParser.parse(input).get()
         assertThat(res.involvedCurrencies, `is`(listOf("BYN")))
         assertThat(res.baseCurrency, `is`("BYN"))
         assertThat(res.expression, `is`("2 + 7 - (-7)"))
@@ -254,10 +266,10 @@ class InputQueryServiceTest {
     @Test
     fun `parse expression query 6`() {
         val input = "-7+2+7 !CZK"
-        val res = service.parse(input).get()
+        val res = queryParser.parse(input).get()
         assertThat(res.involvedCurrencies, `is`(listOf("BYN")))
         assertThat(res.baseCurrency, `is`("BYN"))
-        assertThat(res.expression, `is`("(-7) + 2 + 7"))
+        assertThat(res.expression, `is`("-7 + 2 + 7"))
         assertThat(res.type, `is`(ExpressionType.SINGLE_CURRENCY_EXPR))
         assertThat(res.expressionResult, `is`(exchanger.exchangeToApiBase(2.toBigDecimal(), "BYN")))
         assertThat(res.targets, `is`(listOf("BYN", "USD", "EUR", "RUB", "CZK")))
@@ -266,7 +278,7 @@ class InputQueryServiceTest {
     @Test
     fun `parse expression query 7`() {
         val input = "2+7* - 2 !CZK"
-        val res = service.parse(input).get()
+        val res = queryParser.parse(input).get()
         assertThat(res.involvedCurrencies, `is`(listOf("BYN")))
         assertThat(res.expression, `is`("2 + 7*(-2)"))
         assertThat(res.type, `is`(ExpressionType.SINGLE_CURRENCY_EXPR))
@@ -278,7 +290,7 @@ class InputQueryServiceTest {
     @Test
     fun `parse multi currency expression query 1`() {
         val input = "10 USD + 5 USD +CZK"
-        val res = service.parse(input).get()
+        val res = queryParser.parse(input).get()
         assertThat(res.involvedCurrencies, `is`(listOf("USD")))
         assertThat(res.baseCurrency, `is`("USD"))
         assertThat(res.expression, `is`("10 + 5"))
@@ -290,7 +302,7 @@ class InputQueryServiceTest {
     @Test
     fun `parse multi currency expression query 2`() {
         val input = "(2 + 7 )USD + 2EUR +CZK"
-        val res = service.parse(input).get()
+        val res = queryParser.parse(input).get()
         assertThat(res.involvedCurrencies, `is`(listOf("USD", "EUR")))
         assertThat(res.expression, `is`("(2 + 7) USD + 2 EUR"))
         assertThat(res.type, `is`(ExpressionType.MULTI_CURRENCY_EXPR))
@@ -303,10 +315,25 @@ class InputQueryServiceTest {
 
     @Test
     fun `parse multi currency expression query 3`() {
-        val input = "(2 + 7 )USD * 2 + 2EUR/2 +CZK"
-        val res = service.parse(input).get()
+        val input = "(2 + 7 )USD * 2 + 2EUR/2 &CZK"
+        val res = queryParser.parse(input).get()
         assertThat(res.involvedCurrencies, `is`(listOf("USD", "EUR")))
         assertThat(res.expression, `is`("(2 + 7) USD*2 + 2 EUR/2"))
+        assertThat(res.type, `is`(ExpressionType.MULTI_CURRENCY_EXPR))
+        assertThat(res.expressionResult, `is`(
+                exchanger.exchangeToApiBase(18.toBigDecimal(), "USD") +
+                exchanger.exchangeToApiBase(1.toBigDecimal(), "EUR")
+        ))
+        assertThat(res.targets, `is`(listOf("BYN", "USD", "EUR", "RUB", "CZK")))
+    }
+
+
+    @Test
+    fun `parse multi currency expression query with prefixed currency 1`() {
+        val input = "USD(2 + 7 ) * 2 + 2/2EUR &CZK"
+        val res = queryParser.parse(input).get()
+        assertThat(res.involvedCurrencies, `is`(listOf("USD", "EUR")))
+        assertThat(res.expression, `is`("(2 + 7)*2 USD + 2/2 EUR"))
         assertThat(res.type, `is`(ExpressionType.MULTI_CURRENCY_EXPR))
         assertThat(res.expressionResult, `is`(
                 exchanger.exchangeToApiBase(18.toBigDecimal(), "USD") +
@@ -318,7 +345,7 @@ class InputQueryServiceTest {
     @Test
     fun `parse chained simple operands expression query 1`() {
         val input = "1000$ * 0.91 / 10"
-        val res = service.parse(input).get()
+        val res = queryParser.parse(input).get()
         assertThat(res.involvedCurrencies, `is`(listOf("USD")))
         assertThat(res.type, `is`(ExpressionType.SINGLE_CURRENCY_EXPR))
         assertThat(res.expression, `is`("1000*0.91/10"))
@@ -329,7 +356,7 @@ class InputQueryServiceTest {
     @Test
     fun `parse chained simple operands expression query 2`() {
         val input = "1000$ * 0.91 / 10 * 10"
-        val res = service.parse(input).get()
+        val res = queryParser.parse(input).get()
         assertThat(res.involvedCurrencies, `is`(listOf("USD")))
         assertThat(res.baseCurrency, `is`("USD"))
         assertThat(res.type, `is`(ExpressionType.SINGLE_CURRENCY_EXPR))
@@ -340,8 +367,8 @@ class InputQueryServiceTest {
 
     @Test
     fun `parse chained simple operands expression query 3`() {
-        val input = "10 * 10 * 10 euro + 10 USD"
-        val res = service.parse(input).get()
+        val input = "10 * 10 * 10 eUrO + 10 USD"
+        val res = queryParser.parse(input).get()
         assertThat(res.involvedCurrencies, `is`(listOf("EUR", "USD")))
         assertThat(res.expression, `is`("10*10*10 EUR + 10 USD"))
         assertThat(res.expressionResult, `is`(exchanger.exchangeToApiBase(1000.toBigDecimal(), "EUR") +
@@ -352,7 +379,7 @@ class InputQueryServiceTest {
     @Test
     fun `parse chained simple operands expression query 4`() {
         val input = "(1000$ * 0.91) / 10 * 10"
-        val res = service.parse(input).get()
+        val res = queryParser.parse(input).get()
         assertThat(res.involvedCurrencies, `is`(listOf("USD")))
         assertThat(res.baseCurrency, `is`("USD"))
         assertThat(res.type, `is`(ExpressionType.SINGLE_CURRENCY_EXPR))
@@ -363,7 +390,7 @@ class InputQueryServiceTest {
     @Test
     fun `parse invalid value query`() {
         val input = "asd?/"
-        val res = service.parse(input)
+        val res = queryParser.parse(input)
         assertTrue(res is Result.Failure<InputError>)
         assertThat(res.component2()!!.errorPosition, `is`(1))
         println(res.component2()!!.toMarkdown())
@@ -371,8 +398,8 @@ class InputQueryServiceTest {
 
     @Test
     fun `parse invalid expression query 1`() {
-        val input = "/*123 !BYN"
-        val res = service.parse(input)
+        val input = "/*123 &BYN"
+        val res = queryParser.parse(input)
         assertTrue(res is Result.Failure<InputError>)
         assertThat(res.component2()!!.errorPosition, `is`(1))
         println(res.component2()!!.toMarkdown())
@@ -380,7 +407,7 @@ class InputQueryServiceTest {
     @Test
     fun `parse invalid expression value query 2`() {
         val input = "%23"
-        val res = service.parse(input)
+        val res = queryParser.parse(input)
         assertTrue(res is Result.Failure<InputError>)
         assertThat(res.component2()!!.errorPosition, `is`(1))
         println(res.component2()!!.toMarkdown())
@@ -389,7 +416,7 @@ class InputQueryServiceTest {
     @Test
     fun `parse invalid expression value query 3`() {
         val input = "123^^"
-        val res = service.parse(input)
+        val res = queryParser.parse(input)
         assertTrue(res is Result.Failure<InputError>)
         assertThat(res.component2()!!.errorPosition, `is`(4))
         println(res.component2()!!.toMarkdown())
@@ -398,16 +425,16 @@ class InputQueryServiceTest {
     @Test
     fun `parse invalid expression value query 4`() {
         val input = "123/0"
-        val res = service.parse(input)
+        val res = queryParser.parse(input)
         assertTrue(res is Result.Failure<InputError>)
-        assertThat(res.component2()!!.errorPosition, `is`(5))
+        assertThat(res.component2()!!.errorPosition, `is`(1))
         println(res.component2()!!.toMarkdown())
     }
 
     @Test
     fun `parse invalid expression value query 5`() {
         val input = "*1000"
-        val res = service.parse(input)
+        val res = queryParser.parse(input)
         assertTrue(res is Result.Failure<InputError>)
         assertThat(res.component2()!!.errorPosition, `is`(1))
         println(res.component2()!!.toMarkdown())
@@ -416,16 +443,16 @@ class InputQueryServiceTest {
     @Test
     fun `parse invalid expression value query 6`() {
         val input = "1.9к$ * 0ю91"
-        val res = service.parse(input)
+        val res = queryParser.parse(input)
         assertTrue(res is Result.Failure<InputError>)
-        assertThat(res.component2()!!.errorPosition, `is`(10))
         println(res.component2()!!.toMarkdown())
+        assertThat(res.component2()!!.errorPosition, `is`(10))
     }
 
     @Test
     fun `parse invalid multi currency expression query 1`() {
         val input = "123EUR / 123 USD"
-        val res = service.parse(input)
+        val res = queryParser.parse(input)
         assertTrue(res is Result.Failure<InputError>)
         assertThat(res.component2()!!.errorPosition, `is`(14))
         println(res.component2()!!.toMarkdown())
@@ -435,16 +462,16 @@ class InputQueryServiceTest {
     @Test
     fun `parse invalid multi currency expression query 2`() {
         val input = "123EUR / 0 + 23 USD"
-        val res = service.parse(input)
+        val res = queryParser.parse(input)
         assertTrue(res is Result.Failure<InputError>)
-        assertThat(res.component2()!!.errorPosition, `is`(10))
+        assertThat(res.component2()!!.errorPosition, `is`(1))
         println(res.component2()!!.toMarkdown())
     }
 
     @Test
     fun `parse invalid multi currency expression query 3`() {
         val input = "123 && EUR / 0 + 23 USD"
-        val res = service.parse(input)
+        val res = queryParser.parse(input)
         assertTrue(res is Result.Failure<InputError>)
         assertThat(res.component2()!!.errorPosition, `is`(5))
         println(res.component2()!!.toMarkdown())
@@ -454,7 +481,7 @@ class InputQueryServiceTest {
     @Test
     fun `parse invalid multi currency expression query 4`() {
         val input = "123 EUR EUR"
-        val res = service.parse(input)
+        val res = queryParser.parse(input)
         assertTrue(res is Result.Failure<InputError>)
         assertThat(res.component2()!!.errorPosition, `is`(9))
         println(res.component2()!!.toMarkdown())
@@ -463,25 +490,34 @@ class InputQueryServiceTest {
     @Test
     fun `parse invalid multi currency expression query 5`() {
         val input = "10 долларов + 10 евро / 0"
-        val res = service.parse(input)
+        val res = queryParser.parse(input)
         assertTrue(res is Result.Failure<InputError>)
-        assertThat(res.component2()!!.errorPosition, `is`(25))
+        assertThat(res.component2()!!.errorPosition, `is`(1))
         println(res.component2()!!.toMarkdown())
     }
 
     @Test
     fun `parse invalid multi currency expression query 6`() {
         val input = "10 / 0 +долларов"
-        val res = service.parse(input)
+        val res = queryParser.parse(input)
         assertTrue(res is Result.Failure<InputError>)
-        assertThat(res.component2()!!.errorPosition, `is`(6))
+        assertThat(res.component2()!!.errorPosition, `is`(1))
+        println(res.component2()!!.toMarkdown())
+    }
+
+    @Test
+    fun `parse invalid multi currency expression query 7`() {
+        val input = "10 долларов + 10 asdf"
+        val res = queryParser.parse(input)
+        assertTrue(res is Result.Failure<InputError>)
+        assertThat(res.component2()!!.errorPosition, `is`(18))
         println(res.component2()!!.toMarkdown())
     }
 
     @Test
     fun `parse query with other base 1`() {
         val input = "18$"
-        val res = service.parse(input).get()
+        val res = queryParser.parse(input).get()
         assertThat(res.involvedCurrencies, `is`(listOf("USD")))
         assertThat(res.expression, `is`("18"))
         assertThat(res.baseCurrency, `is`("USD"))
@@ -493,7 +529,7 @@ class InputQueryServiceTest {
     @Test
     fun `parse query with other base 2`() {
         val input = "1 UAH"
-        val res = service.parse(input).get()
+        val res = queryParser.parse(input).get()
         assertThat(res.involvedCurrencies, `is`(listOf("UAH")))
         assertThat(res.expression, `is`("1"))
         assertThat(res.baseCurrency, `is`("UAH"))
@@ -505,7 +541,7 @@ class InputQueryServiceTest {
     @Test
     fun `parse query with additions`() {
         val input = "18 +кроны !br"
-        val res = service.parse(input).get()
+        val res = queryParser.parse(input).get()
         assertThat(res.involvedCurrencies, `is`(listOf("BYN")))
         assertThat(res.baseCurrency, `is`("BYN"))
         assertThat(res.type, `is`(ExpressionType.SINGLE_VALUE))
@@ -516,7 +552,7 @@ class InputQueryServiceTest {
     @Test
     fun `parse query non-default base`() {
         val input = "18грн !aeyns"
-        val res = service.parse(input).get()
+        val res = queryParser.parse(input).get()
         assertThat(res.involvedCurrencies, `is`(listOf("UAH")))
         assertThat(res.baseCurrency, `is`("UAH"))
         assertThat(res.type, `is`(ExpressionType.SINGLE_VALUE))
@@ -524,12 +560,10 @@ class InputQueryServiceTest {
         assertThat(res.targets, `is`(listOf("BYN", "USD", "EUR", "RUB", "UAH", "GBP")))
     }
 
-
-
     @Test
     fun `parse currency-only query 1`() {
         val input = "Гривна"
-        val res = service.parse(input).get()
+        val res = queryParser.parse(input).get()
         assertThat(res.involvedCurrencies, `is`(listOf("UAH")))
         assertThat(res.baseCurrency, `is`("UAH"))
         assertThat(res.type, `is`(ExpressionType.SINGLE_VALUE))
@@ -539,8 +573,8 @@ class InputQueryServiceTest {
 
     @Test
     fun `parse currency-only query 2`() {
-        val input = "рубль +гривна"
-        val res = service.parse(input).get()
+        val input = "рубль &гривна"
+        val res = queryParser.parse(input).get()
         assertThat(res.involvedCurrencies, `is`(listOf("RUB")))
         assertThat(res.baseCurrency, `is`("RUB"))
         assertThat(res.type, `is`(ExpressionType.SINGLE_VALUE))
@@ -551,10 +585,21 @@ class InputQueryServiceTest {
 
     @Test
     fun `parse invalid currency-only query 1`() {
-        val input = "доллар &"
-        val res = service.parse(input)
+        val input = "доллар ?"
+        val res = queryParser.parse(input)
         assertTrue(res is Result.Failure<InputError>)
         assertThat(res.component2()!!.errorPosition, `is`(8))
+        println(res.component2()!!.toMarkdown())
+    }
+
+
+
+    @Test
+    fun `parse invalid currency-only query 2`() {
+        val input = "asdf"
+        val res = queryParser.parse(input)
+        assertTrue(res is Result.Failure<InputError>)
+        assertThat(res.component2()!!.errorPosition, `is`(1))
         println(res.component2()!!.toMarkdown())
     }
 

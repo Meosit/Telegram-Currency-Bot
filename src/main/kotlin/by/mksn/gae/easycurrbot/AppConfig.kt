@@ -1,6 +1,6 @@
 package by.mksn.gae.easycurrbot
 
-import by.mksn.gae.easycurrbot.entity.Currency
+import by.mksn.gae.easycurrbot.exchange.Currency
 import com.typesafe.config.ConfigFactory
 import io.github.config4k.extract
 
@@ -25,6 +25,7 @@ data class AppConfig(
             val token: String,
             val apiUrl: String,
             val outputWidthChars: Int,
+            val maxMessageLength: Int,
             val creatorUsername: String,
             val creatorId: String
     )
@@ -57,6 +58,7 @@ data class AppConfig(
         data class TokenNames(
                 val number: String,
                 val kilo: String,
+                val mega: String,
                 val leftPar: String,
                 val rightPar: String,
                 val multiply: String,
@@ -65,18 +67,20 @@ data class AppConfig(
                 val plus: String,
                 val whitespace: String,
                 val currency: String,
-                val exclamation: String
+                val exclamation: String,
+                val ampersand: String
         )
 
         data class Errors(
-                val invalidMatcherProvided: String,
+                val invalidCurrencyAlias: String,
                 val illegalCurrencyPlacement: String,
                 val unparsedReminder: String,
                 val mismatchedToken: String,
                 val noMatchingToken: String,
                 val unexpectedEOF: String,
                 val divisionByZero: String,
-                val unexpectedError: String
+                val unexpectedError: String,
+                val queryTooBig: String
         )
     }
 

@@ -1,4 +1,4 @@
-package by.mksn.gae.easycurrbot.network
+package by.mksn.gae.easycurrbot.util.network
 
 import com.google.appengine.api.urlfetch.*
 import io.ktor.client.call.UnsupportedContentTypeException

@@ -1,9 +1,10 @@
 package by.mksn.gae.easycurrbot.route
 
 import by.mksn.gae.easycurrbot.AppConfig
-import by.mksn.gae.easycurrbot.entity.Update
-import by.mksn.gae.easycurrbot.entity.happenedAfter
-import by.mksn.gae.easycurrbot.service.CombinedService
+import by.mksn.gae.easycurrbot.input.toMarkdown
+import by.mksn.gae.easycurrbot.util.CombinedService
+import by.mksn.gae.easycurrbot.util.Update
+import by.mksn.gae.easycurrbot.util.happenedAfter
 import io.ktor.application.Application
 import io.ktor.application.call
 import io.ktor.client.features.ResponseException

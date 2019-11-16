@@ -1,4 +1,4 @@
-package by.mksn.gae.easycurrbot.entity
+package by.mksn.gae.easycurrbot.util
 
 sealed class Result<out V, out E> {
 

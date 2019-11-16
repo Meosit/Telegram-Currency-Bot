@@ -1,15 +1,8 @@
-package by.mksn.gae.easycurrbot.extensions
+package by.mksn.gae.easycurrbot.util
 
 import by.mksn.gae.easycurrbot.AppConfig
 import java.math.BigDecimal
 import java.math.RoundingMode
-import kotlin.math.max
-
-/**
- * Trims the string to the specified [n] number of chars with optional [tail]
- */
-fun String.trimToLength(n: Int, tail: String = "") =
-        if (this.length <= n) this else this.take(max(n - tail.length, 0)) + tail
 
 /**
  * Returns a BigDecimal whose scale is the specified in [AppConfig]
