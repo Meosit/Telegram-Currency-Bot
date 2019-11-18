@@ -9,7 +9,7 @@ import com.github.h0tk3y.betterParse.lexer.Token
  */
 class TokenDictionary(config: AppConfig, allCurrenciesRegex: Regex) {
 
-    val number = token(config.strings.tokenNames.number, "(\\d+\\s*)+[.,](\\s*\\d+)+|(\\d+\\s*)?\\d+") // greedy whitespace occupation
+    val number = token(config.strings.tokenNames.number, "(\\d\\s*)+[.,](\\s*\\d)+|(\\d\\s*)*\\d") // greedy whitespace occupation
     val currency = token(config.strings.tokenNames.currency, allCurrenciesRegex)
     // metric suffix must be placed after currency in the token list to support aliases which starts with the one of the suffixes
     val kilo = token(config.strings.tokenNames.kilo, "[кКkK]")

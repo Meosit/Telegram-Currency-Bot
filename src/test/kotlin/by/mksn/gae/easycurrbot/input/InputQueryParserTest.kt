@@ -18,6 +18,8 @@ import org.junit.Test
 
 class InputQueryParserTest {
     companion object {
+        private lateinit var config: AppConfig
+
         private lateinit var queryParser: InputQueryParser
 
         private lateinit var exchanger: ExchangeRateService
@@ -31,7 +33,7 @@ class InputQueryParserTest {
                     }
                 }
             }
-            val config = AppConfig.create("application.conf")
+            config = AppConfig.create("application.conf")
             exchanger = ExchangeRateService(httpClient, config)
             queryParser = InputQueryParser(config, exchanger)
         }
@@ -603,5 +605,12 @@ class InputQueryParserTest {
         println(res.component2()!!.toMarkdown())
     }
 
+
+    @Test
+    fun `parse very long number query`() {
+        val input = "usd 488328938372887977341537259497997851352671159292899697236058208809454048246899111241332161343881238402187713643910538138490086922551030374059966793632190643617540775466354136146108018361168082820587948041800957124719210860435589413028616075788651235472"
+        val res = queryParser.parse(input)
+        assertTrue(res is Result.Success<InputQuery>)
+    }
 
 }
