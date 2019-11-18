@@ -1,6 +1,7 @@
 package by.mksn.gae.easycurrbot.grammar.parsers
 
 import by.mksn.gae.easycurrbot.AppConfig
+import by.mksn.gae.easycurrbot.input.CurrencyAliasMatcher
 import com.github.h0tk3y.betterParse.grammar.token
 import com.github.h0tk3y.betterParse.lexer.Token
 
@@ -31,7 +32,7 @@ class TokenDictionary(config: AppConfig, allCurrenciesRegex: Regex) {
      * This token is for proper error handling: it placed last and would be captured only of no other (valid) tokens matched.
      * @see InvalidCurrencyFoundException
      */
-    val invalidCurrencyToken = token(config.strings.tokenNames.currency, "[^\\s\\d]+")
+    val invalidCurrencyToken = token(config.strings.tokenNames.currency, CurrencyAliasMatcher.BROAD_ALIAS_REGEX)
 
     val allTokens: List<Token> = listOf(
             number, currency,
