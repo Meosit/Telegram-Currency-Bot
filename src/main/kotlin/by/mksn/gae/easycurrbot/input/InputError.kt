@@ -25,10 +25,6 @@ fun InputError.toMarkdown() = """
 
 fun InputError.toSingleLine() = "(at $errorPosition) $rawInput"
 
-fun main() {
-    println(InputError("1mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm", 1, "lalala").toMarkdown())
-}
-
 fun ErrorResult.toInputError(rawInput: String, config: AppConfig): InputError = when (this) {
     is UnparsedRemainder -> InputError(
             rawInput = rawInput.trimToLength(config.telegram.outputWidthChars, tail = "…"),
