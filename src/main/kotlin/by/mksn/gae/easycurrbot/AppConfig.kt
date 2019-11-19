@@ -68,7 +68,8 @@ data class AppConfig(
                 val whitespace: String,
                 val currency: String,
                 val exclamation: String,
-                val ampersand: String
+                val ampersand: String,
+                val nativeConversionUnion: String
         )
 
         data class Errors(

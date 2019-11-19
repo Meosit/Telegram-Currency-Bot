@@ -16,9 +16,10 @@ class TokenDictionary(config: AppConfig, allCurrenciesRegex: Regex) {
     val kilo = token(config.strings.tokenNames.kilo, "[кКkK]")
     val mega = token(config.strings.tokenNames.mega, "[мМmM]")
 
-    val whitespace = token(config.strings.tokenNames.whitespace, "\\s+", ignore = true)
     val exclamation = token(config.strings.tokenNames.exclamation, "!")
     val ampersand = token(config.strings.tokenNames.ampersand, "&")
+    val nativeConversionUnion = token(config.strings.tokenNames.nativeConversionUnion, "(?<=\\s)(в|into|in)(?=\\s)")
+    val whitespace = token(config.strings.tokenNames.whitespace, "\\s+", ignore = true)
 
     val leftPar = token(config.strings.tokenNames.leftPar, "\\(")
     val rightPar = token(config.strings.tokenNames.rightPar, "\\)")
@@ -37,8 +38,8 @@ class TokenDictionary(config: AppConfig, allCurrenciesRegex: Regex) {
     val allTokens: List<Token> = listOf(
             number, currency,
             kilo, mega,
+            exclamation, ampersand, nativeConversionUnion,
             whitespace,
-            exclamation, ampersand,
             leftPar, rightPar,
             multiply, divide, minus, plus,
             invalidCurrencyToken

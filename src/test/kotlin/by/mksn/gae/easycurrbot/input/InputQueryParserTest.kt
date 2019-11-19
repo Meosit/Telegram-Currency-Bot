@@ -634,4 +634,36 @@ class InputQueryParserTest {
         assertTrue(res is Result.Success<InputQuery>)
     }
 
+    @Test
+    fun `(positive) simple value with additional currency key using russian native union`() {
+        val input = "18 евро в фунтах"
+        val res = queryParser.parse(input).get()
+        assertThat(res.involvedCurrencies, `is`(listOf("EUR")))
+        assertThat(res.baseCurrency, `is`("EUR"))
+        assertThat(res.type, `is`(ExpressionType.SINGLE_VALUE))
+        assertThat(res.expressionResult, `is`("18.00000000".toBigDecimal()))
+        assertThat(res.targets, `is`(listOf("BYN", "USD", "EUR", "RUB", "GBP")))
+    }
+
+    @Test
+    fun `(positive) simple value with additional currency key using english native union`() {
+        val input = "18 euro in pounds"
+        val res = queryParser.parse(input).get()
+        assertThat(res.involvedCurrencies, `is`(listOf("EUR")))
+        assertThat(res.baseCurrency, `is`("EUR"))
+        assertThat(res.type, `is`(ExpressionType.SINGLE_VALUE))
+        assertThat(res.expressionResult, `is`("18.00000000".toBigDecimal()))
+        assertThat(res.targets, `is`(listOf("BYN", "USD", "EUR", "RUB", "GBP")))
+    }
+
+
+    @Test
+    fun `(negative) russian native union concatenated with currency`() {
+        val input = "18 euroinpounds"
+        val res = queryParser.parse(input) as Result.Failure<InputError>
+        assertThat(res.error.message, `is`(config.strings.errors.unparsedReminder))
+        assertThat(res.error.errorPosition, `is`(8))
+        println(res.error.toMarkdown())
+    }
+
 }

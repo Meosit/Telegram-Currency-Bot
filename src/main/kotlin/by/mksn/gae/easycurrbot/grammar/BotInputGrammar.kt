@@ -30,7 +30,7 @@ class BotInputGrammar(private val config: AppConfig) : Grammar<BotInput>() {
     private val mathParsers = SimpleMathParsers(config, tokenDict)
     private val currParsers = CurrenciedMathParsers(tokenDict, mathParsers, currencyAliasMatcher)
 
-    private val keyPrefix = skip(tokenDict.plus or tokenDict.exclamation or tokenDict.ampersand)
+    private val keyPrefix = skip(tokenDict.plus or tokenDict.exclamation or tokenDict.ampersand or tokenDict.nativeConversionUnion)
     private val currencyKey = skip(tokenDict.whitespace) and (keyPrefix and currParsers.currency) map { it }
     private val additionaCurrenciesChain by zeroOrMore(currencyKey)
 
